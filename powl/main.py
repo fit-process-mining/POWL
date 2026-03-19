@@ -126,7 +126,7 @@ def discover(
         properties[ORDER_FREQUENCY_RATIO] = order_graph_filtering_threshold
         properties[FILTERING_TYPE] = FilteringType.DYNAMIC
         num_filters += 1
-    if dfg_frequency_filtering_threshold is not None:
+    if dfg_frequency_filtering_threshold is not None and dfg_frequency_filtering_threshold > 0:
         properties[IMFParameters.NOISE_THRESHOLD] = dfg_frequency_filtering_threshold
         properties[FILTERING_TYPE] = FilteringType.DFG_FREQUENCY
         num_filters += 1
