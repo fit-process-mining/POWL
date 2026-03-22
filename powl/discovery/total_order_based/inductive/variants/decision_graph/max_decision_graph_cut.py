@@ -14,7 +14,6 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 from pm4py.objects.dfg import util as dfu
 from pm4py.objects.dfg.obj import DFG
 
-from powl.objects.BinaryRelation import BinaryRelation
 from powl.discovery.total_order_based.inductive.modeling import ChoiceGraphSpec
 
 

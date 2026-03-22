@@ -22,8 +22,8 @@ from powl.discovery.total_order_based.inductive.utils.filtering import (
 )
 
 from powl.general_utils.efg_frequency_filtering import filter_efg_based_on_filtered_dfg
-from powl.objects.BinaryRelation import BinaryRelation
 from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
+from powl.objects.BinaryRelation import BinaryRelation
 
 
 def generate_initial_order(nodes, efg):
