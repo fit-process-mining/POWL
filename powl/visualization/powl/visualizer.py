@@ -87,7 +87,7 @@ def apply(powl: TaggedPOWL, variant=DEFAULT_VARIANT, frequency_tags=True) -> str
             - POWLVisualizationVariants.NET: BPMN-like visualization with decision gates
     frequency_tags
         If True, show skip/repeat tags directly on the rendered elements.
-        If False, materialize those tags into explicit visualization-only structure.
+        If False, materialize those tags into explicit structure.
 
     Returns
     -----------
