@@ -4,32 +4,16 @@ import powl
 from powl.conversion.variants.to_bpmn_with_resources import (
     apply as to_bpmn_with_resources,
 )
-from powl.objects.obj import (
-    BinaryRelation,
-    DecisionGraph,
-    Operator,
-    OperatorPOWL,
-    SilentTransition,
-    Transition,
-)
+from powl.objects.tagged_powl.activity import Activity
+from powl.objects.tagged_powl.builders import sequence
 
 
 def generate_process_1():
-    order_coffee = Transition("Order Coffee", "Customer", "Customer")
-    pay = Transition("Pay", "Customer", "Customer")
-    prepare_coffee = Transition("Prepare Coffee", "Cafe", "Customer")
-    serve_coffee = Transition("Serve Coffee", "Cafe", "Barista")
-    none = SilentTransition()
-    serve_coffee = OperatorPOWL(Operator.XOR, [serve_coffee, none])
-    # Create decision graph
-    binary_relation = BinaryRelation([order_coffee, pay, prepare_coffee, serve_coffee])
-    binary_relation.add_edge(order_coffee, pay)
-    binary_relation.add_edge(pay, prepare_coffee)
-    binary_relation.add_edge(prepare_coffee, serve_coffee)
-
-    dg = DecisionGraph(
-        binary_relation, start_nodes=[order_coffee], end_nodes=[serve_coffee]
-    ).simplify()
+    order_coffee = Activity("Order Coffee", "Customer", "Customer")
+    pay = Activity("Pay", "Customer", "Customer")
+    prepare_coffee = Activity("Prepare Coffee", "Cafe", "Customer")
+    serve_coffee = Activity("Serve Coffee", "Cafe", "Barista", min_freq=0)
+    dg = sequence([order_coffee, pay, prepare_coffee, serve_coffee]).normalize()
     # Visualize it
     powl.view(dg)
     bpmn = powl.convert_to_bpmn(dg)
