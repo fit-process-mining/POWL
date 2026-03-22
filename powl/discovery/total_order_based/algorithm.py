@@ -33,7 +33,7 @@ from powl.discovery.total_order_based.inductive.variants.im_tree import IMBasePO
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 DEFAULT_POWL_MINER = POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC
 
@@ -64,7 +64,7 @@ def apply(
     parameters: Optional[Dict[Any, Any]] = None,
     variant=DEFAULT_POWL_MINER,
     simplify=True,
-) -> POWL:
+) -> TaggedPOWL:
     if parameters is None:
         parameters = {}
     ack = exec_utils.get_param_value(
@@ -89,6 +89,6 @@ def apply(
     im = algorithm(parameters)
     res = im.apply(IMDataStructureUVCL(uvcl), parameters)
     if simplify:
-        res = res.simplify()
+        res = res.normalize()
 
     return res

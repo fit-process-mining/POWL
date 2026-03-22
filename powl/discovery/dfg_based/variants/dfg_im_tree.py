@@ -6,7 +6,7 @@ from powl.discovery.total_order_based.inductive.fall_through.empty_traces import
     POWLEmptyTracesDFG,
 )
 from powl.discovery.total_order_based.inductive.variants.im_tree import IMBasePOWL
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 T = TypeVar("T", bound=IMDataStructureDFG)
 
@@ -20,7 +20,7 @@ class DFGIMBasePOWL(IMBasePOWL[T]):
         obj: T,
         parameters: Optional[Dict[str, Any]] = None,
         second_iteration: bool = False,
-    ) -> POWL:
+    ) -> TaggedPOWL:
 
         empty_traces = self.empty_traces_cut().apply(obj, parameters)
         if empty_traces is not None:

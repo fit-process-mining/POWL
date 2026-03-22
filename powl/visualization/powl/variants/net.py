@@ -13,7 +13,7 @@ from pm4py.util import constants
 
 from powl.conversion.variants.to_petri_net import apply as powl_to_pn
 
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 
 class Parameters(Enum):
@@ -287,7 +287,7 @@ def split_xor_gateways(nodes, edges):
     return nodes, edges
 
 
-def apply(powl: POWL) -> graphviz.Digraph:
+def apply(powl: TaggedPOWL) -> graphviz.Digraph:
     pn_2, init_2, final_2 = powl_to_pn(
         powl, parameters={"flatten_frequency_tags": False}
     )

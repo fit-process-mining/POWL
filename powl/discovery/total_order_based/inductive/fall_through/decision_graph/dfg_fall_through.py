@@ -6,7 +6,7 @@ from pm4py.algo.discovery.inductive.fall_through.abc import FallThrough, T
 from powl.discovery.total_order_based.inductive.variants.decision_graph.dfg_cut import (
     DFGCutUVCL,
 )
-from powl.objects.obj import DecisionGraph, POWL
+from powl.discovery.total_order_based.inductive.modeling import ChoiceGraphSpec
 
 
 class DFGFallThroughUVCL(FallThrough[IMDataStructureUVCL]):
@@ -25,5 +25,5 @@ class DFGFallThroughUVCL(FallThrough[IMDataStructureUVCL]):
         pool=None,
         manager=None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[DecisionGraph, List[POWL]]]:
+    ) -> Optional[Tuple[ChoiceGraphSpec, List[T]]]:
         return DFGCutUVCL.apply(obj, parameters)

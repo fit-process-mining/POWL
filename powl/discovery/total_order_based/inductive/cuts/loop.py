@@ -9,15 +9,14 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
     IMDataStructureUVCL,
 )
 from pm4py.objects.dfg.obj import DFG
-from pm4py.objects.process_tree.obj import Operator
 
-from powl.objects.obj import OperatorPOWL
+from powl.discovery.total_order_based.inductive.modeling import LoopSpec
 
 
 class POWLLoopCut(LoopCut, ABC, Generic[T]):
     @classmethod
-    def operator(cls, parameters: Optional[Dict[str, Any]] = None) -> OperatorPOWL:
-        return OperatorPOWL(Operator.LOOP, [])
+    def operator(cls, parameters: Optional[Dict[str, Any]] = None) -> LoopSpec:
+        return LoopSpec(0)
 
 
 class POWLLoopCutUVCL(LoopCutUVCL, POWLLoopCut[IMDataStructureUVCL]):

@@ -23,7 +23,7 @@ from powl.discovery.total_order_based.inductive.cuts.xor import (
     POWLExclusiveChoiceCutDFG,
     POWLExclusiveChoiceCutUVCL,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 
 class CutFactory:
@@ -51,7 +51,7 @@ class CutFactory:
     @classmethod
     def find_cut(
         cls, obj: IMDataStructure, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         for c in CutFactory.get_cuts(obj):
             r = c.apply(obj, parameters)
             if r is not None:

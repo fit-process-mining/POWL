@@ -19,24 +19,23 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 from pm4py.objects.dfg import util as dfu
 from pm4py.objects.dfg.obj import DFG
 
-from powl.objects.obj import Sequence
+from powl.discovery.total_order_based.inductive.modeling import SequenceSpec
 
 
 class POWLSequenceCut(SequenceCut, ABC, Generic[T]):
     @classmethod
-    def operator(cls, parameters: Optional[Dict[str, Any]] = None) -> Sequence:
-        return Sequence([])
+    def operator(cls, parameters: Optional[Dict[str, Any]] = None) -> SequenceSpec:
+        return SequenceSpec(0)
 
     @classmethod
     def apply(
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[Sequence, List[T]]]:
+    ) -> Optional[Tuple[SequenceSpec, List[T]]]:
         g = cls.holds(obj, parameters)
         if g is None:
             return g
         children = cls.project(obj, g, parameters)
-        po = Sequence(children)
-        return po, children
+        return SequenceSpec(len(children)), children
 
 
 class POWLStrictSequenceCut(POWLSequenceCut[T], StrictSequenceCut, ABC):

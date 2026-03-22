@@ -164,6 +164,10 @@ class ChoiceGraph(GraphBacked):
         )
         return new
 
+    def normalize(self) -> TaggedPOWL:
+        node_map = {n: n.normalize() for n in self.children}
+        return self.map_nodes(node_map)._reduce_silent_activities()
+
     def to_dict(self) -> dict[str, Any]:
 
         nodes = list(self.get_nodes())
@@ -182,7 +186,7 @@ class ChoiceGraph(GraphBacked):
             "end_nodes": end,
         }
 
-    def reduce_silent_activities(self) -> TaggedPOWL:
+    def _reduce_silent_activities(self) -> TaggedPOWL:
         """
         Reduces silent activities by merging redundant edges, handling global self-loops,
         and abstracting isolated subgraphs that are dominated by a silent loop transition.
@@ -196,7 +200,7 @@ class ChoiceGraph(GraphBacked):
         self._reduce_simple_silent_transitions()
         self._mark_skippable_nodes()
 
-        node_map = {n: n.reduce_silent_activities() for n in self.get_nodes()}
+        node_map = {n: n.normalize() for n in self.get_nodes()}
         self._map_graph(node_map)
         self._abstract_self_loop()
         return self._apply_advanced_reductions()
@@ -541,3 +545,13 @@ class ChoiceGraph(GraphBacked):
             self.mark_start(node_map[n])
         for n in old_end:
             self.mark_end(node_map[n])
+
+    def map_nodes(self, mapping: dict[TaggedPOWL, TaggedPOWL]) -> "ChoiceGraph":
+        return ChoiceGraph(
+            nodes=[mapping[n] for n in self.children],
+            edges=[(mapping[u], mapping[v]) for (u, v) in self.get_edges()],
+            start_nodes=[mapping[n] for n in self.start_nodes()],
+            end_nodes=[mapping[n] for n in self.end_nodes()],
+            min_freq=self.min_freq,
+            max_freq=self.max_freq,
+        )

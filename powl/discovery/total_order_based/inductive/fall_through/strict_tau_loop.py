@@ -6,9 +6,8 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
 from pm4py.algo.discovery.inductive.fall_through.strict_tau_loop import (
     StrictTauLoopUVCL,
 )
-from pm4py.objects.process_tree.obj import Operator
 
-from powl.objects.obj import OperatorPOWL
+from powl.discovery.total_order_based.inductive.modeling import LoopSpec
 
 
 class POWLStrictTauLoopUVCL(StrictTauLoopUVCL):
@@ -19,11 +18,11 @@ class POWLStrictTauLoopUVCL(StrictTauLoopUVCL):
         pool: Pool = None,
         manager: Manager = None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[OperatorPOWL, List[IMDataStructureUVCL]]]:
+    ) -> Optional[Tuple[LoopSpec, List[IMDataStructureUVCL]]]:
         log = obj.data_structure
         proj = cls._get_projected_log(log)
         if sum(proj.values()) > sum(log.values()):
-            return OperatorPOWL(Operator.LOOP, []), [
+            return LoopSpec(2), [
                 IMDataStructureUVCL(proj),
                 IMDataStructureUVCL(Counter()),
             ]

@@ -7,7 +7,7 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 
 from powl.discovery.total_order_based.inductive.base_case.abc import BaseCase
 
-from powl.objects.obj import Transition
+from powl.objects.tagged_powl.activity import Activity
 
 
 class SingleActivityBaseCaseUVCL(BaseCase[IMDataStructureUVCL]):
@@ -24,12 +24,12 @@ class SingleActivityBaseCaseUVCL(BaseCase[IMDataStructureUVCL]):
     @classmethod
     def leaf(
         cls, obj=IMDataStructureUVCL, parameters: Optional[Dict[str, Any]] = None
-    ) -> Transition:
+    ) -> Activity:
         for t in obj.data_structure:
             if t:
-                return Transition(label=t[0])
+                return Activity(label=t[0])
             else:
-                return Transition()
+                return Activity(label=None)
 
 
 class SingleActivityBaseCaseDFG(BaseCase[IMDataStructureDFG]):
@@ -53,5 +53,5 @@ class SingleActivityBaseCaseDFG(BaseCase[IMDataStructureDFG]):
         cls,
         obj=IMDataStructureDFG,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Transition:
-        return Transition(label=list(obj.dfg.start_activities)[0])
+    ) -> Activity:
+        return Activity(label=list(obj.dfg.start_activities)[0])

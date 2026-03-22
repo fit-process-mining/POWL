@@ -23,7 +23,7 @@ from powl.discovery.total_order_based.inductive.utils.filtering import (
 
 from powl.general_utils.efg_frequency_filtering import filter_efg_based_on_filtered_dfg
 from powl.objects.BinaryRelation import BinaryRelation
-from powl.objects.obj import POWL, StrictPartialOrder
+from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
 
 
 def generate_initial_order(nodes, efg):
@@ -149,8 +149,8 @@ class MaximalPartialOrderCut(Cut[T], ABC, Generic[T]):
     @classmethod
     def operator(
         cls, parameters: Optional[Dict[str, Any]] = None
-    ) -> StrictPartialOrder:
-        return StrictPartialOrder([])
+    ) -> PartialOrderSpec:
+        return PartialOrderSpec(0)
 
     @classmethod
     def holds(
@@ -188,18 +188,18 @@ class MaximalPartialOrderCut(Cut[T], ABC, Generic[T]):
     @classmethod
     def apply(
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[StrictPartialOrder, List[POWL]]]:
+    ) -> Optional[Tuple[PartialOrderSpec, List[T]]]:
         g = cls.holds(obj, parameters)
         if g is None:
             return g
         children = cls.project(obj, g.nodes, parameters)
-        po = StrictPartialOrder(children)
+        edges = []
         for i, j in combinations(range(len(g.nodes)), 2):
             if g.is_edge_id(i, j):
-                po.order.add_edge(children[i], children[j])
+                edges.append((i, j))
             elif g.is_edge_id(j, i):
-                po.order.add_edge(children[j], children[i])
-        return po, po.children
+                edges.append((j, i))
+        return PartialOrderSpec(size=len(children), edges=tuple(edges)), children
 
 
 def project_on_groups_with_unique_activities(

@@ -13,7 +13,7 @@ from powl.discovery.total_order_based.inductive.variants.im_tree import T
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 
 class POWLInductiveMinerDecisionGraphCyclic(POWLInductiveMinerDecisionGraphMaximal):
@@ -22,7 +22,7 @@ class POWLInductiveMinerDecisionGraphCyclic(POWLInductiveMinerDecisionGraphMaxim
 
     def find_cut(
         self, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         res = CutFactoryCyclicDecisionGraph.find_cut(obj, parameters=parameters)
         return res
 
@@ -35,6 +35,6 @@ class POWLInductiveMinerDecisionGraphCyclicStrict(
 
     def find_cut(
         self, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         res = CutFactoryCyclicDecisionGraphStrict.find_cut(obj, parameters=parameters)
         return res

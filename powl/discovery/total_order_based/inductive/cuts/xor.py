@@ -11,15 +11,14 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
     IMDataStructureDFG,
     IMDataStructureUVCL,
 )
-from pm4py.objects.process_tree.obj import Operator
 
-from powl.objects.obj import OperatorPOWL
+from powl.discovery.total_order_based.inductive.modeling import XorSpec
 
 
 class POWLExclusiveChoiceCut(ExclusiveChoiceCut, ABC, Generic[T]):
     @classmethod
-    def operator(cls, parameters: Optional[Dict[str, Any]] = None) -> OperatorPOWL:
-        return OperatorPOWL(Operator.XOR, [])
+    def operator(cls, parameters: Optional[Dict[str, Any]] = None) -> XorSpec:
+        return XorSpec(0)
 
 
 class POWLExclusiveChoiceCutUVCL(

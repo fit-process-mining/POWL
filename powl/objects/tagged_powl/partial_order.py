@@ -5,8 +5,8 @@ from typing import Any, Iterable, Optional, Tuple
 import networkx as nx
 
 from .activity import Activity
-from .graph_base import GraphBacked
 from .base import TaggedPOWL
+from .graph_base import GraphBacked
 from .types import ModelType
 
 
@@ -67,10 +67,10 @@ class PartialOrder(GraphBacked):
             "edges": edges,
         }
 
-    def reduce_silent_activities(self) -> "PartialOrder":
+    def _reduce_silent_activities(self) -> "PartialOrder":
 
         old_nodes = list(self.get_nodes())
-        node_map = {n: n.reduce_silent_activities() for n in old_nodes}
+        node_map = {n: n.normalize() for n in old_nodes}
 
         new = PartialOrder(
             nodes=node_map.values(),
@@ -102,6 +102,21 @@ class PartialOrder(GraphBacked):
                     changed = True
 
         return new
+
+    def normalize(self) -> TaggedPOWL:
+        node_map = {n: n.normalize() for n in self.children}
+        simplified = self.map_nodes(node_map)._reduce_silent_activities()
+        if isinstance(simplified, PartialOrder):
+            return simplified.flatten()
+        return simplified
+
+    def map_nodes(self, mapping: dict[TaggedPOWL, TaggedPOWL]) -> "PartialOrder":
+        return PartialOrder(
+            nodes=[mapping[n] for n in self.children],
+            edges=[(mapping[u], mapping[v]) for (u, v) in self.get_edges()],
+            min_freq=self.min_freq,
+            max_freq=self.max_freq,
+        )
 
     def flatten(self) -> TaggedPOWL:
 

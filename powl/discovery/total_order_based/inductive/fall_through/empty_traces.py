@@ -14,9 +14,8 @@ from pm4py.algo.discovery.inductive.fall_through.empty_traces import (
     EmptyTracesUVCL,
 )
 from pm4py.objects.dfg.obj import DFG
-from pm4py.objects.process_tree.obj import Operator
 
-from powl.objects.obj import OperatorPOWL
+from powl.discovery.total_order_based.inductive.modeling import XorSpec
 
 
 class POWLEmptyTracesUVCL(EmptyTracesUVCL):
@@ -27,11 +26,11 @@ class POWLEmptyTracesUVCL(EmptyTracesUVCL):
         pool: Pool = None,
         manager: Manager = None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[OperatorPOWL, List[IMDataStructureUVCL]]]:
+    ) -> Optional[Tuple[XorSpec, List[IMDataStructureUVCL]]]:
         if cls.holds(obj, parameters):
             data_structure = copy(obj.data_structure)
             del data_structure[()]
-            return OperatorPOWL(Operator.XOR, []), [
+            return XorSpec(2), [
                 IMDataStructureUVCL(Counter()),
                 IMDataStructureUVCL(data_structure),
             ]
@@ -47,9 +46,9 @@ class POWLEmptyTracesDFG(EmptyTracesDFG):
         pool=None,
         manager=None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[OperatorPOWL, List[IMDataStructureDFG]]]:
+    ) -> Optional[Tuple[XorSpec, List[IMDataStructureDFG]]]:
         if cls.holds(obj, parameters):
-            return OperatorPOWL(Operator.XOR, []), [
+            return XorSpec(2), [
                 IMDataStructureDFG(InductiveDFG(DFG())),
                 IMDataStructureDFG(InductiveDFG(obj.data_structure.dfg)),
             ]

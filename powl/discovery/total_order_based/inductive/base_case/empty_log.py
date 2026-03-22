@@ -7,15 +7,15 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 )
 
 from powl.discovery.total_order_based.inductive.base_case.abc import BaseCase, T
-from powl.objects.obj import SilentTransition
+from powl.objects.tagged_powl.activity import Activity
 
 
 class EmptyLogBaseCase(BaseCase[T], ABC, Generic[T]):
     @classmethod
     def leaf(
         cls, obj=T, parameters: Optional[Dict[str, Any]] = None
-    ) -> SilentTransition:
-        return SilentTransition()
+    ) -> Activity:
+        return Activity(label=None)
 
 
 class EmptyLogBaseCaseUVCL(EmptyLogBaseCase[IMDataStructureUVCL]):

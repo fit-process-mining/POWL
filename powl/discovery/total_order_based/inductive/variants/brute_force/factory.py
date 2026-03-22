@@ -16,7 +16,7 @@ from powl.discovery.total_order_based.inductive.cuts.xor import (
 from powl.discovery.total_order_based.inductive.variants.brute_force.bf_partial_order_cut import (
     BruteForcePartialOrderCutUVCL,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 
 class CutFactoryPOWLBruteForce(CutFactory):
@@ -37,7 +37,7 @@ class CutFactoryPOWLBruteForce(CutFactory):
     @classmethod
     def find_cut(
         cls, obj: IMDataStructureUVCL, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         for c in CutFactoryPOWLBruteForce.get_cuts(obj):
             r = c.apply(obj, parameters)
             if r is not None:

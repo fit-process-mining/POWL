@@ -16,15 +16,13 @@ from powl.conversion.to_powl.from_pn.utils.subnet_creation import (
 from powl.conversion.to_powl.from_pn.utils.weak_reachability import (
     get_simplified_reachability_graph,
 )
-from powl.objects.obj import POWL
 from powl.objects.tagged_powl.activity import Activity
 from powl.objects.tagged_powl.base import TaggedPOWL
 from powl.objects.tagged_powl.choice_graph import ChoiceGraph
 from powl.objects.tagged_powl.partial_order import PartialOrder
-from powl.objects.tagged_powl.to_legacy import convert_tagged_powl_to_legacy_model
 
 
-def convert_workflow_net_to_powl(net: PetriNet) -> POWL:
+def convert_workflow_net_to_powl(net: PetriNet) -> TaggedPOWL:
     """
     Convert a Petri net to a POWL model.
 
@@ -37,9 +35,7 @@ def convert_workflow_net_to_powl(net: PetriNet) -> POWL:
     start_place, end_place = validate_workflow_net(net)
     net = preprocess(net)
     res = __translate_petri_to_powl(net, start_place, end_place)
-    res = res.reduce_silent_activities()
-    res = convert_tagged_powl_to_legacy_model(res)
-    return res
+    return res.normalize()
 
 
 def __translate_petri_to_powl(

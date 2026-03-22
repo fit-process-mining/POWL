@@ -12,11 +12,10 @@ from pm4py.algo.discovery.inductive.fall_through.flower import (
     FlowerModelUVCL,
 )
 from pm4py.objects.dfg.obj import DFG
-from pm4py.objects.process_tree.obj import Operator
 from pm4py.util.compression import util as comut
 from pm4py.util.compression.dtypes import UVCL
 
-from powl.objects.obj import OperatorPOWL
+from powl.discovery.total_order_based.inductive.modeling import LoopSpec
 
 
 class POWLFlowerModelUVCL(FlowerModelUVCL):
@@ -27,7 +26,7 @@ class POWLFlowerModelUVCL(FlowerModelUVCL):
         pool: Pool = None,
         manager: Manager = None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[OperatorPOWL, List[IMDataStructureUVCL]]]:
+    ) -> Optional[Tuple[LoopSpec, List[IMDataStructureUVCL]]]:
         log = obj.data_structure
         uvcl_redo = UVCL()
         for a in sorted(list(comut.get_alphabet(log))):
@@ -35,7 +34,7 @@ class POWLFlowerModelUVCL(FlowerModelUVCL):
         uvcl_do = UVCL()
         im_uvcl_do = IMDataStructureUVCL(uvcl_do)
         im_uvcl_redo = IMDataStructureUVCL(uvcl_redo)
-        return OperatorPOWL(Operator.LOOP, []), [im_uvcl_do, im_uvcl_redo]
+        return LoopSpec(2), [im_uvcl_do, im_uvcl_redo]
 
 
 class POWLFlowerModelDFG(FlowerModelDFG):
@@ -46,7 +45,7 @@ class POWLFlowerModelDFG(FlowerModelDFG):
         pool: Pool = None,
         manager: Manager = None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[OperatorPOWL, List[IMDataStructureDFG]]]:
+    ) -> Optional[Tuple[LoopSpec, List[IMDataStructureDFG]]]:
         activities = (
             set(obj.dfg.start_activities)
             .union(set(obj.dfg.end_activities))
@@ -60,4 +59,4 @@ class POWLFlowerModelDFG(FlowerModelDFG):
         dfg_do = DFG()
         im_dfg_do = IMDataStructureDFG(InductiveDFG(dfg_do))
         im_dfg_redo = IMDataStructureDFG(InductiveDFG(dfg_redo))
-        return OperatorPOWL(Operator.LOOP, []), [im_dfg_do, im_dfg_redo]
+        return LoopSpec(2), [im_dfg_do, im_dfg_redo]

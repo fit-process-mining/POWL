@@ -7,7 +7,7 @@ from powl.discovery.total_order_based.inductive.variants.maximal.factory import 
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 
 class DFGPOWLInductiveMinerMaximalOrder(DFGIMBasePOWL):
@@ -16,6 +16,6 @@ class DFGPOWLInductiveMinerMaximalOrder(DFGIMBasePOWL):
 
     def find_cut(
         self, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         res = CutFactoryPOWLMaximal.find_cut(obj, parameters=parameters)
         return res

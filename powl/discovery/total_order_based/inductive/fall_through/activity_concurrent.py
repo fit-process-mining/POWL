@@ -8,7 +8,7 @@ from pm4py.algo.discovery.inductive.fall_through.activity_concurrent import (
     ActivityConcurrentUVCL,
 )
 
-from powl.objects.obj import StrictPartialOrder
+from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
 
 
 class POWLActivityConcurrentUVCL(ActivityConcurrentUVCL):
@@ -19,7 +19,7 @@ class POWLActivityConcurrentUVCL(ActivityConcurrentUVCL):
         pool: Pool = None,
         manager: Manager = None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[StrictPartialOrder, List[IMDataStructureUVCL]]]:
+    ) -> Optional[Tuple[PartialOrderSpec, List[IMDataStructureUVCL]]]:
         candidate = cls._get_candidate(obj, pool, manager, parameters)
         if candidate is None:
             return None
@@ -29,7 +29,7 @@ class POWLActivityConcurrentUVCL(ActivityConcurrentUVCL):
         for t in log:
             l_a.update({tuple(filter(lambda e: e == candidate, t)): log[t]})
             l_other.update({tuple(filter(lambda e: e != candidate, t)): log[t]})
-        return StrictPartialOrder([]), [
+        return PartialOrderSpec(2), [
             IMDataStructureUVCL(l_a),
             IMDataStructureUVCL(l_other),
         ]
