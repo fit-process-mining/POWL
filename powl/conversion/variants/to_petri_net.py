@@ -198,7 +198,7 @@ def recursively_add_tree(
     return net, counts, final_place
 
 
-def apply(powl):
+def apply(powl, parameters = None):
     powl = expand_frequency_tags(
         powl,
         expand_activities=True,
