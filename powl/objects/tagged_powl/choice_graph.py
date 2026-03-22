@@ -165,8 +165,7 @@ class ChoiceGraph(GraphBacked):
         return new
 
     def normalize(self) -> TaggedPOWL:
-        node_map = {n: n.normalize() for n in self.children}
-        return self.map_nodes(node_map)._reduce_silent_activities()
+        return self._reduce_silent_activities()
 
     def to_dict(self) -> dict[str, Any]:
 
