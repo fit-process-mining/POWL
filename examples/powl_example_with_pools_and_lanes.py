@@ -33,13 +33,17 @@ def generate_process_1():
         },
         dg,
     )
-    with open("coffee_shop_process.bpmn", "w") as f:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    bpmn_path = os.path.join(current_dir, "coffee_shop_process.bpmn")
+    with open(bpmn_path, "w") as f:
         f.write(bpmn_model)
 
 
 def generate_process_2():
 
-    log = powl.import_event_log(r"./examples/running-example.csv")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(current_dir, "running-example.csv")
+    log = powl.import_event_log(path)
     model = powl.discover(log, dfg_frequency_filtering_threshold=0.0)
 
     activity_to_pool_lane = {
@@ -53,13 +57,14 @@ def generate_process_2():
         "decide": ("P1", "Lane3"),
     }
 
+    powl.view(model)
+
     bpmn_model = to_bpmn_with_resources(activity_to_pool_lane, model)
     # export it as .bpmn
-    current_dir = os.path.dirname(os.path.abspath(__file__))
     bpmn_path = os.path.join(current_dir, "powl_bpmn.bpmn")
     with open(bpmn_path, "w") as f:
         f.write(bpmn_model)
 
 
 if __name__ == "__main__":
-    generate_process_2()
+    generate_process_1()
