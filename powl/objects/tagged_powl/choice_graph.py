@@ -208,6 +208,8 @@ class ChoiceGraph(GraphBacked):
         if len(self.get_nodes()) == 1:
             return self._flatten_single_node()
         self._abstract_sccs()
+        if len(self.get_nodes()) == 1:
+            return self._flatten_single_node()
         return self._abstract_sequences()
 
 
@@ -224,9 +226,6 @@ class ChoiceGraph(GraphBacked):
             silent_nodes = [n for n in self.get_nodes() if is_silent(n)]
 
             for tau in silent_nodes:
-
-                if tau not in self._g.nodes:
-                    pass
 
                 preds = set(self._g.predecessors(tau))
                 succs = set(self._g.successors(tau))
