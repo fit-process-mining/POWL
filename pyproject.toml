@@ -40,3 +40,8 @@ include = ["powl*"]
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 version = { attr = "powl.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
