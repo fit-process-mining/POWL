@@ -49,12 +49,11 @@ def build_model(spec: InductiveModel, children: list[TaggedPOWL]) -> TaggedPOWL:
         return spec
 
     if isinstance(spec, SequenceSpec):
-        return sequence(children).normalize()
-
+        return sequence(children)
     if isinstance(spec, XorSpec):
         if not children:
             return Activity(label=None)
-        return xor(children).normalize()
+        return xor(children)
 
     if isinstance(spec, LoopSpec):
         if not children:
@@ -66,15 +65,15 @@ def build_model(spec: InductiveModel, children: list[TaggedPOWL]) -> TaggedPOWL:
         elif len(redo_children) == 1:
             redo = redo_children[0]
         else:
-            redo = xor(redo_children).normalize()
-        return loop(do, redo).normalize()
+            redo = xor(redo_children)
+        return loop(do, redo)
 
     if isinstance(spec, PartialOrderSpec):
         po = PartialOrder(
             nodes=children,
             edges=[(children[i], children[j]) for (i, j) in spec.edges],
         )
-        return po.normalize()
+        return po
 
     if isinstance(spec, ChoiceGraphSpec):
         cg = ChoiceGraph(
@@ -85,6 +84,6 @@ def build_model(spec: InductiveModel, children: list[TaggedPOWL]) -> TaggedPOWL:
             min_freq=spec.min_freq,
             max_freq=spec.max_freq,
         )
-        return cg.normalize()
+        return cg
 
     raise TypeError(f"Unsupported inductive spec: {type(spec)}")

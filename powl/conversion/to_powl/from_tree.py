@@ -23,7 +23,7 @@ def apply(tree: ProcessTree) -> TaggedPOWL:
     elif tree.operator == PTOperator.LOOP:
         if len(nodes) < 2:
             raise ValueError("Loop nodes are missing")
-        powl = loop(nodes[0], nodes[1] if len(nodes) == 2 else xor(nodes[1:]).normalize())
+        powl = loop(nodes[0], nodes[1] if len(nodes) == 2 else xor(nodes[1:]))
     elif tree.operator == PTOperator.PARALLEL:
         powl = PartialOrder(nodes=nodes)
     elif tree.operator == PTOperator.SEQUENCE:
