@@ -100,7 +100,12 @@ def repr_powl(powl: TaggedPOWL, viz, level: int):
                 with importlib.resources.path("powl.visualization.powl.variants.icons", icon) as gimg:
                     viz.node(
                         this_node_id,
-                        label="\n" + label,
+                        label=f"""<
+                                <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0">
+                                    <TR><TD HEIGHT="20"></TD></TR>
+                                    <TR><TD>{label[1:-1]}</TD></TR>
+                                </TABLE>
+                                >""",
                         imagepos="tr",
                         image=str(gimg),
                         shape="box",
