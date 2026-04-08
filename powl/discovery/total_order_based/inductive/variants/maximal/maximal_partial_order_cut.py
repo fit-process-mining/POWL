@@ -253,32 +253,29 @@ class MaximalPartialOrderCutDFG(MaximalPartialOrderCut[IMDataStructureDFG]):
         """
 
         base_dfg = obj.dfg
-        dfg_map = {group: DFG() for group in groups}
+        dfgs = [DFG() for _ in groups]
 
-        activity_to_group_map = {}
-        for group in groups:
+        activity_to_group_idx = {}
+        for i, group in enumerate(groups):
             for activity in group:
-                activity_to_group_map[activity] = group
+                activity_to_group_idx[activity] = i
 
-        for (a, b) in base_dfg.graph:
-            group_a = activity_to_group_map[a]
-            group_b = activity_to_group_map[b]
-            freq = base_dfg.graph[(a, b)]
-            if group_a == group_b:
-                dfg_map[group_a].graph[(a, b)] = freq
+        for (a, b), freq in base_dfg.graph.items():
+            i = activity_to_group_idx[a]
+            j = activity_to_group_idx[b]
+            if i == j:
+                dfgs[i].graph[(a, b)] = freq
             else:
-                dfg_map[group_a].end_activities[a] += freq
-                dfg_map[group_b].start_activities[b] += freq
-        for a in base_dfg.start_activities:
-            group_a = activity_to_group_map[a]
-            dfg_map[group_a].start_activities[a] += base_dfg.start_activities[a]
-        for a in base_dfg.end_activities:
-            group_a = activity_to_group_map[a]
-            dfg_map[group_a].end_activities[a] += base_dfg.end_activities[a]
+                dfgs[i].end_activities[a] += freq
+                dfgs[j].start_activities[b] += freq
 
-        return list(
-            map(
-                lambda g: IMDataStructureDFG(InductiveDFG(dfg=dfg_map[g], skip=False)),
-                groups,
-            )
-        )
+        for a, freq in base_dfg.start_activities.items():
+            dfgs[activity_to_group_idx[a]].start_activities[a] += freq
+
+        for a, freq in base_dfg.end_activities.items():
+            dfgs[activity_to_group_idx[a]].end_activities[a] += freq
+
+        return [
+            IMDataStructureDFG(InductiveDFG(dfg=dfg, skip=False))
+            for dfg in dfgs
+        ]
