@@ -218,11 +218,16 @@ def view_net(powl: TaggedPOWL, use_frequency_tags=True):
     powl_visualizer.view(gviz)
 
 
-def view_ocpn(object_centric_pn, selected_object_types=None):
+def view_ocpn(object_centric_pn, selected_object_types=None, combined_view=True):
     if selected_object_types is not None:
         from powl.discovery.object_centric.utils.filter_ocpn import filter_ocpn_by_object_types
         object_centric_pn = filter_ocpn_by_object_types(object_centric_pn, selected_object_types)
-    return pm4py.view_ocpn(object_centric_pn, format="SVG")
+    if not combined_view:
+        for ot in object_centric_pn["object_types"]:
+            pn, im, fm = object_centric_pn["petri_nets"][ot]
+            pm4py.view_petri_net(pn, im, fm, graph_title=ot, format="SVG")
+    else:
+        pm4py.view_ocpn(object_centric_pn, format="SVG")
 
 
 def save_visualization(powl: TaggedPOWL, file_path: str, use_frequency_tags=True):
