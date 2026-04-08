@@ -28,7 +28,7 @@ from powl.discovery.total_order_based.inductive.fall_through.strict_tau_loop imp
 from powl.discovery.total_order_based.inductive.fall_through.tau_loop import (
     POWLTauLoopUVCL,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 S = TypeVar("S", bound=FallThrough | Cut)
 
@@ -70,7 +70,7 @@ class FallThroughFactory:
         manager: Manager,
         enable_dfg_fall_through,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         for f in FallThroughFactory.get_fall_throughs(obj, enable_dfg_fall_through):
             r = f.apply(obj, pool, manager, parameters)
             if r is not None:

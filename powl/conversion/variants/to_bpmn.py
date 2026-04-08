@@ -1,21 +1,24 @@
+from __future__ import annotations
+
 from typing import List
 
 import networkx as nx
 import pm4py.objects.bpmn.obj as bpmn_obj
-from pm4py.objects.process_tree.obj import Operator
 
-from powl.objects.obj import (
-    DecisionGraph,
-    EndNode,
-    OperatorPOWL,
-    SilentTransition,
-    StartNode,
-    StrictPartialOrder,
-    Transition,
+from powl.objects import TaggedPOWL, expand_frequency_tags
+from powl.objects.tagged_powl.choice_graph import _ChoiceGraphStart, _ChoiceGraphEnd
+
+from powl.objects.tagged_powl import (
+    Activity,
+    PartialOrder,
+    ChoiceGraph,
 )
 
 
-def __handle_transition(powl_content: Transition) -> nx.DiGraph:
+def __handle_transition(powl_content: Activity) -> nx.DiGraph:
+    if powl_content.is_silent():
+        return __handle_silent_transition(powl_content)
+
     # Add artificial start and end nodes
     subgraph = nx.DiGraph()
     start_node = f"Start_{id(powl_content)}"
@@ -29,7 +32,7 @@ def __handle_transition(powl_content: Transition) -> nx.DiGraph:
     return subgraph
 
 
-def __handle_silent_transition(powl_content: SilentTransition) -> nx.DiGraph:
+def __handle_silent_transition(powl_content: Activity) -> nx.DiGraph:
     subgraph = nx.DiGraph()
     start_node = f"Start_{id(powl_content)}"
     end_node = f"End_{id(powl_content)}"
@@ -42,103 +45,25 @@ def __handle_silent_transition(powl_content: SilentTransition) -> nx.DiGraph:
     return subgraph
 
 
-def __handle_operator_powl(powl_content: OperatorPOWL) -> nx.DiGraph:
+def __handle_decision_graph(powl_content: ChoiceGraph) -> nx.DiGraph:
     """
-    Handle the OperatorPOWL content and return a directed graph.
+    Handle the ChoiceGraph content and return a directed graph.
 
     Parameters
     ----------
-    powl_content : OperatorPOWL
-        The OperatorPOWL content to handle.
+    powl_content : ChoiceGraph
+        The ChoiceGraph content to handle.
 
     Returns
     -------
     G : nx.DiGraph
-        The directed graph representing the OperatorPOWL.
-    """
-    G = nx.DiGraph()
-    start_event = f"Start_{id(powl_content)}"
-    end_event = f"End_{id(powl_content)}"
-    G.add_node(start_event, type="start", visited=True)
-    G.add_node(end_event, type="end", visited=True)
-    operator = powl_content.operator
-
-    if operator == Operator.LOOP and len(powl_content.children) == 2:
-        # Add a diverging parallel gateway and a converging parallel gateway
-        diverging_gateway = f"ExclusiveGateway_{id(powl_content)}_diverging"
-        converging_gateway = f"ExclusiveGateway_{id(powl_content)}_converging"
-        G.add_node(
-            diverging_gateway,
-            type="diverging",
-            paired_with=[converging_gateway],
-            visited=True,
-        )
-        G.add_node(
-            converging_gateway,
-            type="converging",
-            paired_with=[diverging_gateway],
-            visited=True,
-        )
-        # Handle the edges now
-        do_part = powl_content.children[0]
-        redo_part = powl_content.children[1]
-        G.add_node(id(do_part), content=do_part, visited=False)
-        G.add_node(id(redo_part), content=redo_part, visited=False)
-        G.add_edge(start_event, converging_gateway)
-        G.add_edge(converging_gateway, id(do_part))
-        G.add_edge(id(do_part), diverging_gateway)
-        G.add_edge(diverging_gateway, end_event)
-        G.add_edge(diverging_gateway, id(redo_part))
-        G.add_edge(id(redo_part), converging_gateway)
-
-    elif operator == Operator.XOR:
-        # One exclusive choice gateway
-        exclusive_gateway_diverging = f"ExclusiveGateway_{id(powl_content)}_diverging"
-        exclusive_gateway_converging = f"ExclusiveGateway_{id(powl_content)}_converging"
-        G.add_node(
-            exclusive_gateway_diverging,
-            type="diverging",
-            paired_with=[exclusive_gateway_converging],
-            visited=True,
-        )
-        G.add_node(
-            exclusive_gateway_converging,
-            type="converging",
-            paired_with=[exclusive_gateway_diverging],
-            visited=True,
-        )
-        G.add_edge(start_event, exclusive_gateway_diverging)
-        G.add_edge(exclusive_gateway_converging, end_event)
-
-        for child in powl_content.children:
-            if id(child) not in G.nodes:
-                G.add_node(id(child), content=child, visited=False)
-            G.add_edge(exclusive_gateway_diverging, id(child))
-            G.add_edge(id(child), exclusive_gateway_converging)
-    else:
-        raise ValueError(f"Unsupported operator: {operator}")
-    return G
-
-
-def __handle_decision_graph(powl_content: DecisionGraph) -> nx.DiGraph:
-    """
-    Handle the DecisionGraph content and return a directed graph.
-
-    Parameters
-    ----------
-    powl_content : DecisionGraph
-        The DecisionGraph content to handle.
-
-    Returns
-    -------
-    G : nx.DiGraph
-        The directed graph representing the DecisionGraph.
+        The directed graph representing the ChoiceGraph.
     """
 
     G = nx.DiGraph()
     edges = __obtain_edges(powl_content, transitive_reduction=False)
     node_edges = {
-        node: {"incoming": [], "outgoing": []} for node in powl_content.order.nodes
+        node: {"incoming": [], "outgoing": []} for node in powl_content.graph.nodes
     }
     for edge in edges:
         src, dst = edge
@@ -146,7 +71,7 @@ def __handle_decision_graph(powl_content: DecisionGraph) -> nx.DiGraph:
         node_edges[dst]["incoming"].append(src)
     for node in node_edges.keys():
         # Check for end and start
-        if type(node) is StartNode:
+        if type(node) is _ChoiceGraphStart:
             G.add_node(id(node), type="start", visited=True)
             # Add an exclusive gateway after it
             G.add_node(
@@ -156,7 +81,7 @@ def __handle_decision_graph(powl_content: DecisionGraph) -> nx.DiGraph:
             )
             # Connect them
             G.add_edge(id(node), f"ExclusiveGateway_{id(node)}_afternode")
-        elif type(node) is EndNode:
+        elif type(node) is _ChoiceGraphEnd:
             G.add_node(id(node), type="end", visited=True)
             # Add an exclusive gateway before it
             G.add_node(
@@ -185,13 +110,7 @@ def __handle_decision_graph(powl_content: DecisionGraph) -> nx.DiGraph:
 
 
 def __obtain_edges(powl_content, transitive_reduction: bool = True) -> List[tuple]:
-    edges = []
-    for src in powl_content.order.nodes:
-        for dst in powl_content.order.nodes:
-            if powl_content.order.is_edge(src, dst):
-                edges.append((src, dst))
-    G = nx.DiGraph()
-    G.add_edges_from(edges)
+    G = powl_content.graph
     if transitive_reduction:
         G = nx.transitive_reduction(G)
     return list(G.edges)
@@ -229,19 +148,19 @@ def __add_auxiliary_nodes_before_after(
     return G
 
 
-def __handle_StrictPartialOrder(powl_content: StrictPartialOrder) -> nx.DiGraph:
+def __handle_StrictPartialOrder(powl_content: PartialOrder) -> nx.DiGraph:
     """
-    Handle the StrictPartialOrder content and return a directed graph.
+    Handle the PartialOrder content and return a directed graph.
 
     Parameters
     ----------
-    powl_content : StrictPartialOrder
-        The StrictPartialOrder content to handle.
+    powl_content : PartialOrder
+        The PartialOrder content to handle.
 
     Returns
     -------
     G : nx.DiGraph
-        The directed graph representing the StrictPartialOrder.
+        The directed graph representing the PartialOrder.
     """
     edges = __obtain_edges(powl_content)
     G = nx.DiGraph()
@@ -252,7 +171,7 @@ def __handle_StrictPartialOrder(powl_content: StrictPartialOrder) -> nx.DiGraph:
 
     # Construct a dictionary with incoming and outgoing edges for each node
     node_edges = {
-        node: {"incoming": [], "outgoing": []} for node in powl_content.order.nodes
+        node: {"incoming": [], "outgoing": []} for node in powl_content.graph.nodes
     }
     for src, dst in edges:
         node_edges[src]["outgoing"].append(dst)
@@ -317,11 +236,9 @@ def __generate_submodel(powl_content) -> nx.DiGraph:
     """
     G = nx.DiGraph()
     handler_map = {
-        SilentTransition: __handle_silent_transition,
-        Transition: __handle_transition,
-        OperatorPOWL: __handle_operator_powl,
-        StrictPartialOrder: __handle_StrictPartialOrder,
-        DecisionGraph: __handle_decision_graph,
+        Activity: __handle_transition,
+        PartialOrder: __handle_StrictPartialOrder,
+        ChoiceGraph: __handle_decision_graph,
     }
 
     if type(powl_content) in handler_map:
@@ -443,7 +360,7 @@ def expand_model(powl, G: nx.DiGraph):
         The directed graph to populate.
     """
     # Identify the node that has the powl we are currently considering
-    if isinstance(powl, StartNode) or isinstance(powl, EndNode):
+    if isinstance(powl, _ChoiceGraphStart) or isinstance(powl, _ChoiceGraphEnd):
         # Remove them from the graph
         node = next((n for n in G.nodes if G.nodes[n].get("content") is powl), None)
         if node is not None:
@@ -553,7 +470,7 @@ def __print_powl(powl):
     print(powl)
 
 
-def apply(powl):
+def apply(powl: TaggedPOWL):
     """
     Convert a POWL model to a BPMN model.
 
@@ -571,6 +488,12 @@ def apply(powl):
     original_element_id_to_id : dict
         A mapping from original element IDs to their ides.
     """
+
+    powl = expand_frequency_tags(
+        powl,
+        expand_activities=True,
+    )
+
     G = nx.DiGraph()
     # Create the start and end event
     start_event = "StartEvent"

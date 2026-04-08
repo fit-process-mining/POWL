@@ -11,7 +11,7 @@ from powl.discovery.total_order_based.inductive.variants.decision_graph.max_deci
 from powl.discovery.total_order_based.inductive.variants.dynamic_clustering.dynamic_clustering_partial_order_cut import (
     DynamicClusteringPartialOrderCutUVCL,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 
 class CutFactoryPOWLDecisionGraphClustering(CutFactory):
@@ -26,7 +26,7 @@ class CutFactoryPOWLDecisionGraphClustering(CutFactory):
     @classmethod
     def find_cut(
         cls, obj: IMDataStructure, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         alphabet = sorted(dfu.get_vertices(obj.dfg), key=lambda g: g.__str__())
         if len(alphabet) < 2:
             return None

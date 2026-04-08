@@ -1,16 +1,12 @@
 from pm4py.objects.process_tree.obj import Operator as PTOperator, ProcessTree
 
-from powl.objects.obj import (
-    OperatorPOWL,
-    POWL,
-    Sequence,
-    SilentTransition,
-    StrictPartialOrder,
-    Transition,
-)
+from powl.objects.tagged_powl.activity import Activity
+from powl.objects.tagged_powl.base import TaggedPOWL
+from powl.objects.tagged_powl.builders import loop, sequence, xor
+from powl.objects.tagged_powl.partial_order import PartialOrder
 
 
-def apply(tree: ProcessTree) -> POWL:
+def apply(tree: ProcessTree) -> TaggedPOWL:
 
     nodes = []
 
@@ -19,20 +15,22 @@ def apply(tree: ProcessTree) -> POWL:
 
     if tree.operator is None:
         if tree.label is not None:
-            powl = Transition(label=tree.label)
+            powl = Activity(label=tree.label)
         else:
-            powl = SilentTransition()
+            powl = Activity(label=None)
     elif tree.operator == PTOperator.XOR:
-        powl = OperatorPOWL(PTOperator.XOR, nodes)
+        powl = xor(nodes)
     elif tree.operator == PTOperator.LOOP:
-        powl = OperatorPOWL(PTOperator.LOOP, nodes)
+        if len(nodes) < 2:
+            raise ValueError("Loop nodes are missing")
+        powl = loop(nodes[0], nodes[1] if len(nodes) == 2 else xor(nodes[1:]))
     elif tree.operator == PTOperator.PARALLEL:
-        powl = StrictPartialOrder(nodes=nodes)
+        powl = PartialOrder(nodes=nodes)
     elif tree.operator == PTOperator.SEQUENCE:
-        powl = Sequence(nodes)
+        powl = sequence(nodes)
     else:
         raise Exception("Unsupported process tree!")
 
-    powl = powl.simplify()
+    powl = powl.normalize()
 
     return powl

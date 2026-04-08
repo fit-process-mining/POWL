@@ -13,8 +13,7 @@ from pm4py.algo.discovery.inductive.fall_through.empty_traces import (
     EmptyTracesUVCL,
 )
 
-from powl.objects.BinaryRelation import BinaryRelation
-from powl.objects.obj import DecisionGraph
+from powl.discovery.total_order_based.inductive.modeling import ChoiceGraphSpec
 
 
 class POWLEmptyTracesDecisionGraphUVCL(EmptyTracesUVCL):
@@ -25,15 +24,18 @@ class POWLEmptyTracesDecisionGraphUVCL(EmptyTracesUVCL):
         pool: Pool = None,
         manager: Manager = None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[DecisionGraph, List[IMDataStructureUVCL]]]:
+    ) -> Optional[Tuple[ChoiceGraphSpec, List[IMDataStructureUVCL]]]:
         if cls.holds(obj, parameters):
             data_structure = copy(obj.data_structure)
             del data_structure[()]
             children = [IMDataStructureUVCL(data_structure)]
-            dg = DecisionGraph(
-                BinaryRelation(copy(children)), children, children, empty_path=True
-            )
-            return dg, children
+            return ChoiceGraphSpec(
+                size=1,
+                start_nodes=(0,),
+                end_nodes=(0,),
+                min_freq=0,
+                max_freq=1,
+            ), children
         else:
             return None
 
@@ -46,11 +48,14 @@ class POWLEmptyTracesDecisionGraphDFG(EmptyTracesDFG):
         pool=None,
         manager=None,
         parameters: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Tuple[DecisionGraph, List[IMDataStructureDFG]]]:
+    ) -> Optional[Tuple[ChoiceGraphSpec, List[IMDataStructureDFG]]]:
         if cls.holds(obj, parameters):
             children = [IMDataStructureDFG(InductiveDFG(obj.data_structure.dfg))]
-            dg = DecisionGraph(
-                BinaryRelation(copy(children)), children, children, empty_path=True
-            )
-            return dg, children
+            return ChoiceGraphSpec(
+                size=1,
+                start_nodes=(0,),
+                end_nodes=(0,),
+                min_freq=0,
+                max_freq=1,
+            ), children
         return None

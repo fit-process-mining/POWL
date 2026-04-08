@@ -134,7 +134,7 @@ def graphviz_visualization(
         "",
         filename=filename.name,
         engine="dot",
-        graph_attr={"bgcolor": bgcolor, "rankdir": rankdir},
+        graph_attr={"bgcolor": bgcolor, "rankdir": 'TB'},
     )
 
     # first, remove edges in diagram that exceeds the maximum number of edges in the diagram

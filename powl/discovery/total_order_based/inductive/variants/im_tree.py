@@ -28,15 +28,12 @@ from powl.discovery.total_order_based.inductive.utils.filtering import (
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
-from powl.general_utils.dfg_frequency_filtering import filter_dfg_noise_keep_activities_and_repair
-from powl.objects.BinaryRelation import BinaryRelation
-from powl.objects.obj import (
-    DecisionGraph,
-    OperatorPOWL,
-    POWL,
-    Sequence,
-    StrictPartialOrder,
+from powl.discovery.total_order_based.inductive.modeling import (
+    InductiveModel,
+    build_model,
 )
+from powl.general_utils.dfg_frequency_filtering import filter_dfg_noise_keep_activities_and_repair
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 T = TypeVar("T", bound=IMDataStructureUVCL)
 
@@ -80,7 +77,7 @@ class IMBasePOWL(ABC, Generic[T]):
         obj: T,
         parameters: Optional[Dict[str, Any]] = None,
         second_iteration: bool = False,
-    ) -> POWL:
+    ) -> TaggedPOWL:
 
         noise_threshold = exec_utils.get_param_value(
             IMFParameters.NOISE_THRESHOLD, parameters, 0.0
@@ -163,17 +160,17 @@ class IMBasePOWL(ABC, Generic[T]):
 
     def apply_base_cases(
         self, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[POWL]:
+    ) -> Optional[TaggedPOWL]:
         return BaseCaseFactory.apply_base_cases(obj, parameters=parameters)
 
     def find_cut(
         self, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         return CutFactory.find_cut(obj, parameters=parameters)
 
     def fall_through(
         self, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Tuple[POWL, List[T]]:
+    ) -> Tuple[InductiveModel, List[T]]:
         return FallThroughFactory.fall_through(
             obj,
             self._pool,
@@ -183,45 +180,10 @@ class IMBasePOWL(ABC, Generic[T]):
         )
 
     def _recurse(
-        self, powl: POWL, objs: List[T], parameters: Optional[Dict[str, Any]] = None
+        self,
+        powl: InductiveModel,
+        objs: List[T],
+        parameters: Optional[Dict[str, Any]] = None,
     ):
         children = [self.apply(obj, parameters=parameters) for obj in objs]
-        if isinstance(powl, StrictPartialOrder):
-            if isinstance(powl, Sequence):
-                return Sequence(children)
-            powl_new = StrictPartialOrder(children)
-            for i, j in combinations(range(len(powl.children)), 2):
-                if powl.order.is_edge_id(i, j):
-                    powl_new.order.add_edge(children[i], children[j])
-                elif powl.order.is_edge_id(j, i):
-                    powl_new.order.add_edge(children[j], children[i])
-            return powl_new
-        elif isinstance(powl, DecisionGraph):
-            new_order = BinaryRelation(children)
-            for i, j in combinations(range(len(powl.children)), 2):
-                if powl.order.is_edge(objs[i], objs[j]):
-                    new_order.add_edge(children[i], children[j])
-                if powl.order.is_edge(objs[j], objs[i]):
-                    new_order.add_edge(children[j], children[i])
-            start_nodes = [
-                children[i]
-                for i in range(len(powl.children))
-                if objs[i] in powl.start_nodes
-            ]
-            end_nodes = [
-                children[i]
-                for i in range(len(powl.children))
-                if objs[i] in powl.end_nodes
-            ]
-            empty_path = powl.order.is_edge(powl.start, powl.end)
-            return DecisionGraph(
-                new_order, start_nodes, end_nodes, empty_path=empty_path
-            )
-        elif isinstance(powl, OperatorPOWL):
-            if powl.operator == Operator.LOOP and len(children) > 2:
-                new_child = OperatorPOWL(Operator.XOR, children[1:])
-                children = [children[0], new_child]
-            return OperatorPOWL(powl.operator, children)
-
-        else:
-            raise Exception("Unsupported POWL type!")
+        return build_model(powl, children)

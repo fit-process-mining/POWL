@@ -9,7 +9,8 @@ from enum import Enum
 
 from pm4py.util import exec_utils
 
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
+from powl.objects.tagged_powl.builders import expand_frequency_tags
 
 from powl.visualization.powl.variants import basic, net
 
@@ -69,7 +70,7 @@ def inline_images_and_svgs(svg_content):
     return img_pattern.sub(replace_with_inline_content, svg_content)
 
 
-def apply(powl: POWL, variant=DEFAULT_VARIANT, frequency_tags=True) -> str:
+def apply(powl: TaggedPOWL, variant=DEFAULT_VARIANT, frequency_tags=True) -> str:
     """
     Method for POWL model representation
 
@@ -85,7 +86,8 @@ def apply(powl: POWL, variant=DEFAULT_VARIANT, frequency_tags=True) -> str:
             - POWLVisualizationVariants.BASIC (default)
             - POWLVisualizationVariants.NET: BPMN-like visualization with decision gates
     frequency_tags
-        Simplify the visualization using frequency tags
+        If True, show skip/repeat tags directly on the rendered elements.
+        If False, materialize those tags into explicit structure.
 
     Returns
     -----------
@@ -93,9 +95,8 @@ def apply(powl: POWL, variant=DEFAULT_VARIANT, frequency_tags=True) -> str:
         SVG Content
     """
     powl = copy.deepcopy(powl)
-    if frequency_tags:
-        powl = powl.simplify_using_frequent_transitions()
-
+    if not frequency_tags:
+        powl = expand_frequency_tags(powl, expand_activities=True)
 
     viz = exec_utils.get_variant(variant).apply(powl)
     svg_content = viz.pipe().decode("utf-8")

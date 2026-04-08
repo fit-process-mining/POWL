@@ -13,15 +13,13 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 )
 from pm4py.objects.dfg import util as dfu
 from pm4py.objects.dfg.obj import DFG
-from pm4py.objects.process_tree.obj import Operator
 
-from powl.objects.BinaryRelation import BinaryRelation
-from powl.objects.obj import DecisionGraph, POWL
+from powl.discovery.total_order_based.inductive.modeling import ChoiceGraphSpec
 
 
 class MaximalDecisionGraphCut(Cut[T], ABC, Generic[T]):
     @classmethod
-    def operator(cls, parameters: Optional[Dict[str, Any]] = None) -> Operator:
+    def operator(cls, parameters: Optional[Dict[str, Any]] = None):
         return None
 
     @classmethod
@@ -47,7 +45,7 @@ class MaximalDecisionGraphCut(Cut[T], ABC, Generic[T]):
     @classmethod
     def apply(
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[DecisionGraph, List[POWL]]]:
+    ) -> Optional[Tuple[ChoiceGraphSpec, List[T]]]:
 
         dfg = obj.dfg
 
@@ -96,18 +94,21 @@ class MaximalDecisionGraphCut(Cut[T], ABC, Generic[T]):
 
         children = cls.project(obj, groups, parameters)
 
-        order = BinaryRelation(nodes=children)
-
+        edges = []
         for i in range(n):
             for j in range(n):
                 if i != j and group_conn[i][j]:
-                    order.add_edge(children[i], children[j])
+                    edges.append((i, j))
 
-        start_nodes = [children[i] for i in range(n) if group_has_start[i]]
-        end_nodes = [children[i] for i in range(n) if group_has_end[i]]
+        start_nodes = tuple(i for i in range(n) if group_has_start[i])
+        end_nodes = tuple(i for i in range(n) if group_has_end[i])
 
-        dg = DecisionGraph(order, start_nodes, end_nodes)
-        return dg, dg.children
+        return ChoiceGraphSpec(
+            size=len(children),
+            edges=tuple(edges),
+            start_nodes=start_nodes,
+            end_nodes=end_nodes,
+        ), children
 
 
 class MaximalDecisionGraphCutUVCL(MaximalDecisionGraphCut[IMDataStructureUVCL], ABC):

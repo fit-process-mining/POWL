@@ -27,7 +27,7 @@ from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial
     MaximalPartialOrderCutDFG,
     MaximalPartialOrderCutUVCL,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 
 class CutFactoryPOWLMaximal(CutFactory):
@@ -57,7 +57,7 @@ class CutFactoryPOWLMaximal(CutFactory):
     @classmethod
     def find_cut(
         cls, obj: IMDataStructureUVCL, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
 
         alphabet = sorted(dfu.get_vertices(obj.dfg), key=lambda g: g.__str__())
         if len(alphabet) < 2:

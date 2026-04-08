@@ -1,17 +1,18 @@
-from powl.objects.obj import POWL, SilentTransition, Transition
+from powl.objects.tagged_powl.activity import Activity
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 
 class ObjectCentricPOWL:
     def __init__(self) -> None:
-        self.flat_model: POWL | Transition | None = None
+        self.flat_model: TaggedPOWL | None = None
 
 
 class LeafNode(ObjectCentricPOWL):
     def __init__(
-        self, transition: Transition, related, divergent, convergent, deficient
+        self, transition: Activity, related, divergent, convergent, deficient
     ):
         super().__init__()
-        if isinstance(transition, SilentTransition):
+        if transition.is_silent():
             self.activity = ""
         else:
             self.activity = transition.label
@@ -39,7 +40,7 @@ class LeafNode(ObjectCentricPOWL):
 
 
 class ComplexModel(ObjectCentricPOWL):
-    def __init__(self, flat_model: POWL, mapping):
+    def __init__(self, flat_model: TaggedPOWL, mapping):
         super().__init__()
         self.flat_model = flat_model
         self.mapping = mapping
@@ -62,13 +63,13 @@ class ComplexModel(ObjectCentricPOWL):
 
 
 def load_oc_powl(
-    flat_model: POWL, related, divergence, convergence, deficiency
+    flat_model: TaggedPOWL, related, divergence, convergence, deficiency
 ) -> ObjectCentricPOWL:
-    if isinstance(flat_model, Transition):
-        if isinstance(flat_model, SilentTransition):
+    if isinstance(flat_model, Activity):
+        if flat_model.is_silent():
             all_types = set(sum([list(v) for v in related.values()], []))
             return LeafNode(
-                SilentTransition(), all_types, all_types, all_types, all_types
+                Activity(label=None), all_types, all_types, all_types, all_types
             )
         else:
             activity = flat_model.label

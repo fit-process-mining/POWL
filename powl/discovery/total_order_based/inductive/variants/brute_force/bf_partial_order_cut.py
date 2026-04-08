@@ -10,7 +10,7 @@ from pm4py.objects.dfg import util as dfu
 from pm4py.statistics.eventually_follows.uvcl.get import apply as to_efg
 
 from powl.objects.BinaryRelation import BinaryRelation
-from powl.objects.obj import POWL, StrictPartialOrder
+from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
 
 
 def remove(blocks, g):
@@ -153,8 +153,8 @@ class BruteForcePartialOrderCut(Cut[T], ABC, Generic[T]):
     @classmethod
     def operator(
         cls, parameters: Optional[Dict[str, Any]] = None
-    ) -> StrictPartialOrder:
-        return StrictPartialOrder([])
+    ) -> PartialOrderSpec:
+        return PartialOrderSpec(0)
 
     @classmethod
     def holds(
@@ -172,18 +172,18 @@ class BruteForcePartialOrderCut(Cut[T], ABC, Generic[T]):
     @classmethod
     def apply(
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[StrictPartialOrder, List[POWL]]]:
+    ) -> Optional[Tuple[PartialOrderSpec, List[T]]]:
         g = cls.holds(obj, parameters)
         if g is None:
             return g
         children = cls.project(obj, g.nodes, parameters)
-        po = StrictPartialOrder(children)
+        edges = []
         for i, j in combinations(range(len(g.nodes)), 2):
             if g.is_edge_id(i, j):
-                po.order.add_edge(children[i], children[j])
+                edges.append((i, j))
             elif g.is_edge_id(j, i):
-                po.order.add_edge(children[j], children[i])
-        return po, po.children
+                edges.append((j, i))
+        return PartialOrderSpec(size=len(children), edges=tuple(edges)), children
 
 
 class BruteForcePartialOrderCutUVCL(BruteForcePartialOrderCut[IMDataStructureUVCL]):

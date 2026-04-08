@@ -17,7 +17,7 @@ from powl.discovery.dfg_based.variants.im_dynamic_clustering_frequencies import 
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 
 def get_variant(variant: POWLDiscoveryVariant) -> Type[DFGIMBasePOWL]:
@@ -37,7 +37,7 @@ def apply(
     dfg: DFG,
     parameters: Optional[Dict[Any, Any]] = None,
     variant=POWLDiscoveryVariant.MAXIMAL,
-) -> POWL:
+) -> TaggedPOWL:
     if parameters is None:
         parameters = {}
 
@@ -46,6 +46,6 @@ def apply(
     algorithm = get_variant(variant)
     im = algorithm(parameters)
     res = im.apply(IMDataStructureDFG(im_dfg), parameters)
-    res = res.simplify()
+    res = res.normalize()
 
     return res

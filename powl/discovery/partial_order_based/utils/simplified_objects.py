@@ -1,12 +1,8 @@
 from typing import Set
 
-from powl.objects.obj import (
-    Operator,
-    OperatorPOWL,
-    SilentTransition,
-    StrictPartialOrder,
-    Transition,
-)
+from powl.objects.tagged_powl.activity import Activity
+from powl.objects.tagged_powl.builders import loop, xor
+from powl.objects.tagged_powl.partial_order import PartialOrder
 
 ENABLE_DUPLICATION = True
 
@@ -249,29 +245,23 @@ def get_leaves(node) -> Set[str]:
 def _simplified_model_to_powl(model, add_instance_number=False):
     if isinstance(model, ActivityInstance):
         if not model.label:
-            return SilentTransition()
+            return Activity(label=None)
         if add_instance_number:
             label = f"({model.label}, {model.number})"
         else:
             label = model.label
-        return Transition(label=label)
+        return Activity(label=label)
     elif isinstance(model, XOR):
-        return OperatorPOWL(
-            operator=Operator.XOR,
-            children=[_simplified_model_to_powl(child) for child in model.children],
-        )
+        return xor([_simplified_model_to_powl(child) for child in model.children])
     elif isinstance(model, LOOP):
-        return OperatorPOWL(
-            operator=Operator.LOOP,
-            children=[
-                _simplified_model_to_powl(model.body),
-                _simplified_model_to_powl(model.redo),
-            ],
+        return loop(
+            _simplified_model_to_powl(model.body),
+            _simplified_model_to_powl(model.redo),
         )
     elif not isinstance(model, Graph):
         raise NotImplementedError
 
-    po = StrictPartialOrder([])
+    po = PartialOrder()
     submodels = model.nodes
     edges = model.edges
 
@@ -279,36 +269,36 @@ def _simplified_model_to_powl(model, add_instance_number=False):
     for submodel in submodels:
         powl_child = _simplified_model_to_powl(submodel)
         powl_map[submodel] = powl_child
-        po.order.add_node(powl_child)
+        po.add_node(powl_child)
 
     for m1, m2 in edges:
-        po.order.add_edge(powl_map[m1], powl_map[m2])
+        po.add_edge(powl_map[m1], powl_map[m2])
 
-    len_all = len(po.order.nodes)
+    len_all = len(po.children)
 
-    start_len = len(po.order.get_start_nodes())
+    start_nodes = [n for n in po.children if po.in_degree(n) == 0]
+    start_len = len(start_nodes)
     if start_len > 1 and start_len != len_all:
-        start = SilentTransition()
-        po.order.add_node(start)
-        for node in set(po.order.nodes) - {start}:
-            po.order.add_edge(start, node)
+        start = Activity(label=None)
+        po.add_node(start)
+        for node in list(po.children):
+            if node is not start:
+                po.add_edge(start, node)
 
-    end_len = len(po.order.get_end_nodes())
+    end_nodes = [n for n in po.children if po.out_degree(n) == 0]
+    end_len = len(end_nodes)
     if end_len > 1 and end_len != len_all:
-        end = SilentTransition()
-        po.order.add_node(end)
-        for node in set(po.order.nodes) - {end}:
-            po.order.add_edge(node, end)
+        end = Activity(label=None)
+        po.add_node(end)
+        for node in list(po.children):
+            if node is not end:
+                po.add_edge(node, end)
 
-    if not po.order.is_irreflexive():
-        raise ValueError("Not irreflexive!")
-
-    if not po.order.is_transitive():
-        raise ValueError("Not transitive!")
+    po.validate()
 
     return po
 
 
 def generate_powl(model, add_instance_number=False):
     powl = _simplified_model_to_powl(model, add_instance_number=add_instance_number)
-    return powl.simplify()
+    return powl.normalize()

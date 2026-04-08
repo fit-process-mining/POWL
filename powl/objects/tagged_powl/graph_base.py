@@ -41,6 +41,10 @@ class GraphBacked(TaggedPOWL, ABC):
         """Default: all nodes that are TaggedPOWL instances."""
         return {n for n in self._g.nodes}
 
+    @property
+    def children(self) -> list[TaggedPOWL]:
+        return [n for n in self._g.nodes if isinstance(n, TaggedPOWL)]
+
     def get_edges(self) -> Set[Tuple[TaggedPOWL, TaggedPOWL]]:
         """Default: edges whose endpoints are TaggedPOWL instances."""
         out: Set[Tuple[TaggedPOWL, TaggedPOWL]] = set()

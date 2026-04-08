@@ -3,7 +3,7 @@ from typing import Any, Dict, Generic, Optional, TypeVar, Union
 
 from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructure
 
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 T = TypeVar("T", bound=Union[IMDataStructure])
 
@@ -12,7 +12,7 @@ class BaseCase(ABC, Generic[T]):
     @classmethod
     def apply(
         cls, obj=T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[POWL]:
+    ) -> Optional[TaggedPOWL]:
         return cls.leaf(obj, parameters) if cls.holds(obj, parameters) else None
 
     @classmethod
@@ -22,5 +22,5 @@ class BaseCase(ABC, Generic[T]):
 
     @classmethod
     @abstractmethod
-    def leaf(cls, obj=T, parameters: Optional[Dict[str, Any]] = None) -> POWL:
+    def leaf(cls, obj=T, parameters: Optional[Dict[str, Any]] = None) -> TaggedPOWL:
         pass

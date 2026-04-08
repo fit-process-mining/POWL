@@ -13,7 +13,7 @@ from pm4py.util import constants
 
 from powl.conversion.variants.to_petri_net import apply as powl_to_pn
 
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
 
 
 class Parameters(Enum):
@@ -287,7 +287,7 @@ def split_xor_gateways(nodes, edges):
     return nodes, edges
 
 
-def apply(powl: POWL) -> graphviz.Digraph:
+def apply(powl: TaggedPOWL) -> graphviz.Digraph:
     pn_2, init_2, final_2 = powl_to_pn(
         powl, parameters={"flatten_frequency_tags": False}
     )
@@ -351,9 +351,10 @@ class FrequencyTask(BPMN.Task):
         super().__init__(
             id=id, name=name, in_arcs=in_arcs, out_arcs=out_arcs, process=process
         )
-        self.activity = properties["activity"]
-        self.skippable = properties["skippable"]
-        self.selfloop = properties["selfloop"]
+        properties = properties or {}
+        self.activity = properties.get("activity", name or "")
+        self.skippable = properties.get("skippable", False)
+        self.selfloop = properties.get("selfloop", False)
         script_dir = os.path.dirname(os.path.realpath(__file__))
         self.image = os.path.join(script_dir, "xor2.png")
 

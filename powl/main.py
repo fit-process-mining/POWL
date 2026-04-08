@@ -22,7 +22,7 @@ from powl.discovery.total_order_based.inductive.variants.dynamic_clustering_freq
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
-from powl.objects.obj import POWL
+from powl.objects.tagged_powl.base import TaggedPOWL
 from powl.visualization.powl.visualizer import POWLVisualizationVariants
 from pm4py import PetriNet
 
@@ -79,7 +79,7 @@ def discover(
     lifecycle_key: str = "lifecycle:transition",
     keep_only_completion_events: bool = True,
     simplify=True,
-) -> POWL:
+) -> TaggedPOWL:
     """
     Discovers a POWL model from an event log.
 
@@ -161,7 +161,7 @@ def discover_from_partially_ordered_log(
     order_key: str = "time:timestamp",
     case_id_key: str = "case:concept:name",
     lifecycle_key: str | None = "lifecycle:transition",
-) -> POWL:
+) -> TaggedPOWL:
     """
     Discovers a POWL model from a partially ordered event log.
 
@@ -195,7 +195,7 @@ def discover_from_partially_ordered_log(
     return powl
 
 
-def view(powl: POWL, use_frequency_tags=True):
+def view(powl: TaggedPOWL, use_frequency_tags=True):
     from powl.visualization.powl import visualizer as powl_visualizer
 
     gviz = powl_visualizer.apply(
@@ -204,7 +204,7 @@ def view(powl: POWL, use_frequency_tags=True):
     powl_visualizer.view(gviz)
 
 
-def view_net(powl: POWL, use_frequency_tags=True):
+def view_net(powl: TaggedPOWL, use_frequency_tags=True):
     from powl.visualization.powl import visualizer as powl_visualizer
 
     gviz = powl_visualizer.apply(
@@ -213,7 +213,7 @@ def view_net(powl: POWL, use_frequency_tags=True):
     powl_visualizer.view(gviz)
 
 
-def save_visualization(powl: POWL, file_path: str, use_frequency_tags=True):
+def save_visualization(powl: TaggedPOWL, file_path: str, use_frequency_tags=True):
     file_path = str(file_path)
     from powl.visualization.powl import visualizer as powl_visualizer
 
@@ -223,7 +223,7 @@ def save_visualization(powl: POWL, file_path: str, use_frequency_tags=True):
     return powl_visualizer.save(gviz, file_path)
 
 
-def save_visualization_net(powl: POWL, file_path: str, use_frequency_tags=True):
+def save_visualization_net(powl: TaggedPOWL, file_path: str, use_frequency_tags=True):
     file_path = str(file_path)
     from powl.visualization.powl import visualizer as powl_visualizer
 
@@ -233,13 +233,13 @@ def save_visualization_net(powl: POWL, file_path: str, use_frequency_tags=True):
     return powl_visualizer.save(gviz, file_path)
 
 
-def convert_to_petri_net(powl: POWL):
+def convert_to_petri_net(powl: TaggedPOWL):
     return powl_converter(powl)
 
-def convert_from_workflow_net(net: PetriNet) -> POWL:
+def convert_from_workflow_net(net: PetriNet) -> TaggedPOWL:
     return convert_workflow_net_to_powl(net)
 
-def convert_to_bpmn(powl: POWL):
+def convert_to_bpmn(powl: TaggedPOWL):
     bpmn, _, _ = to_bpmn(powl)
     bpmn = bpmn_layouter.apply(bpmn)
     return bpmn

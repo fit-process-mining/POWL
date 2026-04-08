@@ -9,7 +9,7 @@ from powl.discovery.total_order_based.inductive.variants.im_tree import IMBasePO
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
-from powl.objects.obj import POWL
+from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
 T = TypeVar("T", bound=IMDataStructureLog)
 
@@ -20,7 +20,7 @@ class POWLInductiveMinerDynamicClusteringFrequency(IMBasePOWL):
 
     def find_cut(
         self, obj: T, parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Tuple[POWL, List[T]]]:
+    ) -> Optional[Tuple[InductiveModel, List[T]]]:
         res = CutFactoryPOWLDynamicClusteringFrequency.find_cut(
             obj, parameters=parameters
         )

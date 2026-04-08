@@ -75,7 +75,7 @@ class TaggedPOWL(ABC):
             raise ValueError("max_freq must be >= min_freq (or None for unbounded)")
 
     @abstractmethod
-    def reduce_silent_activities(self) -> "TaggedPOWL":
+    def normalize(self) -> "TaggedPOWL":
         raise NotImplementedError
 
     def set_freqs(self, *, min_freq: int, max_freq: Optional[int]) -> None:

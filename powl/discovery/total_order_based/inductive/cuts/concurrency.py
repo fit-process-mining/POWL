@@ -12,15 +12,15 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
     IMDataStructureUVCL,
 )
 
-from powl.objects.obj import StrictPartialOrder
+from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
 
 
 class POWLConcurrencyCut(ConcurrencyCut, ABC, Generic[T]):
     @classmethod
     def operator(
         cls, parameters: Optional[Dict[str, Any]] = None
-    ) -> StrictPartialOrder:
-        return StrictPartialOrder([])
+    ) -> PartialOrderSpec:
+        return PartialOrderSpec(0)
 
 
 class POWLConcurrencyCutUVCL(
