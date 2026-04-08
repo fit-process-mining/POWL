@@ -10,7 +10,7 @@ def execute_script():
     )
 
     object_centric_pn = powl.discover_petri_net_from_ocel(object_centric_log, variant=OC_Variants.OC_POWL)
-    powl.view_ocpn(object_centric_pn, selected_object_types=None, combined_view=True)
+    powl.view_ocpn(object_centric_pn)
 
 
 if __name__ == "__main__":
