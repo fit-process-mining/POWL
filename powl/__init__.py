@@ -8,6 +8,7 @@ from powl.main import (
     discover_petri_net_from_ocel,
     import_event_log,
     import_ocel,
+    view_ocpn,
     save_visualization,
     save_visualization_net,
     view,

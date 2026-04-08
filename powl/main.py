@@ -25,21 +25,26 @@ from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints
 from powl.objects.tagged_powl.base import TaggedPOWL
 from powl.visualization.powl.visualizer import POWLVisualizationVariants
 from pm4py import PetriNet
+from powl.discovery.object_centric.algorithm import Variants as OC_Variants
 
 
 def import_ocel(path: str) -> OCEL:
     try:
-        ocel = pm4py.read_ocel2(path)
-    except Exception as e:
-        ocel = pm4py.read_ocel(path)
-    return ocel
+        return pm4py.read_ocel2(path)
+    except BaseException as first_error:
+        try:
+            return pm4py.read_ocel(path)
+        except BaseException as second_error:
+            raise Exception(
+                f"Could not import OCEL file via OCEL 2 or generic reader: {first_error}; fallback failed: {second_error}"
+            ) from second_error
 
 
 def import_event_log(path: str, timestamp_key=None) -> pd.DataFrame:
     import rustxes
 
     if path.endswith(".xes") or path.endswith(".xes.gz"):
-        [xes, log_attrs] = rustxes.import_xes(path)
+        [xes, _] = rustxes.import_xes(path)
         df = xes.to_pandas()
     elif path.endswith(".csv"):
         cols_to_parse = []
@@ -147,8 +152,8 @@ def discover(
     )
 
 
-def discover_petri_net_from_ocel(ocel: OCEL, parameters=None):
-    return oc_discovery(ocel, parameters=parameters)
+def discover_petri_net_from_ocel(ocel: OCEL, variant=OC_Variants.OC_POWL, parameters=None):
+    return oc_discovery(ocel, variant=variant, parameters=parameters)
 
 
 def discover_from_dfg(dfg: DFG, variant=POWLDiscoveryVariant.MAXIMAL, parameters=None):
@@ -211,6 +216,13 @@ def view_net(powl: TaggedPOWL, use_frequency_tags=True):
         powl, variant=POWLVisualizationVariants.NET, frequency_tags=use_frequency_tags
     )
     powl_visualizer.view(gviz)
+
+
+def view_ocpn(object_centric_pn, selected_object_types=None):
+    if selected_object_types is not None:
+        from powl.discovery.object_centric.utils.filter_ocpn import filter_ocpn_by_object_types
+        object_centric_pn = filter_ocpn_by_object_types(object_centric_pn, selected_object_types)
+    return pm4py.view_ocpn(object_centric_pn, format="SVG")
 
 
 def save_visualization(powl: TaggedPOWL, file_path: str, use_frequency_tags=True):
