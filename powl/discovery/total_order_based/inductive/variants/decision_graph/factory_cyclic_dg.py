@@ -8,15 +8,15 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 from pm4py.objects.dfg import util as dfu
 
 from powl.discovery.total_order_based.inductive.cuts.concurrency import (
-    POWLConcurrencyCutUVCL,
+    POWLConcurrencyCutUVCL, POWLConcurrencyCutDFG,
 )
 from powl.discovery.total_order_based.inductive.cuts.factory import CutFactory, T
-from powl.discovery.total_order_based.inductive.cuts.loop import POWLLoopCutUVCL
+from powl.discovery.total_order_based.inductive.cuts.loop import POWLLoopCutUVCL, POWLLoopCutDFG
 from powl.discovery.total_order_based.inductive.variants.decision_graph.cyclic_dg_cut import (
-    CyclicDecisionGraphCutUVCL,
+    CyclicDecisionGraphCutUVCL, CyclicDecisionGraphCutDFG,
 )
 from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import (
-    MaximalPartialOrderCutUVCL,
+    MaximalPartialOrderCutUVCL, MaximalPartialOrderCutDFG,
 )
 from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
@@ -33,7 +33,12 @@ class CutFactoryCyclicDecisionGraph(CutFactory):
                 POWLLoopCutUVCL,
             ]
         elif type(obj) is IMDataStructureDFG:
-            return NotImplementedError
+            return [
+                CyclicDecisionGraphCutDFG,
+                MaximalPartialOrderCutDFG,
+                POWLConcurrencyCutDFG,
+                POWLLoopCutDFG,
+            ]
         else:
             return []
 

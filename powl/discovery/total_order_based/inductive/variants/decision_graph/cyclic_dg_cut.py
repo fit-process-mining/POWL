@@ -5,7 +5,9 @@ from typing import Any, Collection, Dict, List, Optional
 
 from pm4py.algo.discovery.inductive.cuts import utils as cut_util
 from pm4py.algo.discovery.inductive.cuts.abc import T
-from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
+from pm4py.algo.discovery.inductive.dtypes.im_dfg import InductiveDFG
+from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL, IMDataStructureDFG
+from pm4py.objects.dfg.obj import DFG
 from pm4py.util import exec_utils
 from pm4py.algo.discovery.inductive.variants.imf import IMFParameters
 
@@ -72,3 +74,44 @@ class CyclicDecisionGraphCutUVCL(CyclicDecisionGraphCut[IMDataStructureUVCL], AB
                     logs[i][tuple(seg)] += freq
 
         return [IMDataStructureUVCL(l) for l in logs]
+
+
+class CyclicDecisionGraphCutDFG(CyclicDecisionGraphCut[IMDataStructureDFG], ABC):
+    @classmethod
+    def project(
+            cls,
+            obj: IMDataStructureDFG,
+            groups: List[Collection[Any]],
+            parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructureDFG]:
+
+        base_dfg = obj.dfg
+        dfg_map = {group: DFG() for group in groups}
+
+        activity_to_group_map = {}
+        for group in groups:
+            for activity in group:
+                activity_to_group_map[activity] = group
+
+        for (a, b) in base_dfg.graph:
+            group_a = activity_to_group_map[a]
+            group_b = activity_to_group_map[b]
+            freq = base_dfg.graph[(a, b)]
+            if group_a == group_b:
+                dfg_map[group_a].graph[(a, b)] = freq
+            else:
+                dfg_map[group_a].end_activities[a] += freq
+                dfg_map[group_b].start_activities[b] += freq
+        for a in base_dfg.start_activities:
+            group_a = activity_to_group_map[a]
+            dfg_map[group_a].start_activities[a] += base_dfg.start_activities[a]
+        for a in base_dfg.end_activities:
+            group_a = activity_to_group_map[a]
+            dfg_map[group_a].end_activities[a] += base_dfg.end_activities[a]
+
+        return list(
+            map(
+                lambda g: IMDataStructureDFG(InductiveDFG(dfg=dfg_map[g], skip=False)),
+                groups,
+            )
+        )

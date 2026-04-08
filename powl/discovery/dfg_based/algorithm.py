@@ -4,6 +4,7 @@ from pm4py.algo.discovery.inductive.dtypes.im_dfg import InductiveDFG
 from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureDFG
 from pm4py.objects.dfg.obj import DFG
 
+from powl.discovery.dfg_based.variants.dfg_im_decision_graph_cyclic import DFGPOWLInductiveMinerDecisionGraphCyclic
 from powl.discovery.dfg_based.variants.dfg_im_decision_graph_maximal import (
     DFGPOWLInductiveMinerDecisionGraphMaximal,
 )
@@ -29,6 +30,8 @@ def get_variant(variant: POWLDiscoveryVariant) -> Type[DFGIMBasePOWL]:
         return DFGPOWLInductiveMinerDynamicClusteringFrequency
     elif variant == POWLDiscoveryVariant.DECISION_GRAPH_MAX:
         return DFGPOWLInductiveMinerDecisionGraphMaximal
+    elif variant == POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC:
+        return DFGPOWLInductiveMinerDecisionGraphCyclic
     else:
         raise Exception("Invalid Variant!")
 
@@ -36,7 +39,7 @@ def get_variant(variant: POWLDiscoveryVariant) -> Type[DFGIMBasePOWL]:
 def apply(
     dfg: DFG,
     parameters: Optional[Dict[Any, Any]] = None,
-    variant=POWLDiscoveryVariant.MAXIMAL,
+    variant=POWLDiscoveryVariant.DECISION_GRAPH_MAX,
 ) -> TaggedPOWL:
     if parameters is None:
         parameters = {}

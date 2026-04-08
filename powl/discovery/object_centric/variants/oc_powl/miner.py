@@ -24,7 +24,7 @@ from powl.objects.oc_powl import load_oc_powl
 
 def apply(
     oc_log: OCEL,
-    powl_miner_variant=POWLDiscoveryVariant.MAXIMAL,
+    powl_miner_variant=POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC,
     activity_coverage_threshold: float = 1.0,
     parameters: Optional[Dict[Any, Any]] = None,
 ) -> Dict[str, Any]:

@@ -1,5 +1,5 @@
-import pm4py
 import powl
+from powl.discovery.object_centric.algorithm import Variants as OC_Variants
 
 
 def execute_script():
@@ -9,8 +9,8 @@ def execute_script():
         r"C:\Users\kourani\OneDrive - Fraunhofer\FIT\oc_powl\oc_logs\recruiting.jsonocel"
     )
 
-    object_centric_pn = powl.discover_petri_net_from_ocel(object_centric_log)
-    pm4py.view_ocpn(object_centric_pn, format="SVG")
+    object_centric_pn = powl.discover_petri_net_from_ocel(object_centric_log, variant=OC_Variants.OC_POWL)
+    powl.view_ocpn(object_centric_pn, selected_object_types=None, combined_view=True)
 
 
 if __name__ == "__main__":
