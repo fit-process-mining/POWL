@@ -15,6 +15,8 @@ from pm4py.objects.dfg import util as dfu
 from pm4py.objects.dfg.obj import DFG
 
 from powl.discovery.total_order_based.inductive.modeling import ChoiceGraphSpec
+from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import \
+    MaximalPartialOrderCutDFG
 
 
 class MaximalDecisionGraphCut(Cut[T], ABC, Generic[T]):
@@ -142,33 +144,4 @@ class MaximalDecisionGraphCutDFG(MaximalDecisionGraphCut[IMDataStructureDFG], AB
         parameters: Optional[Dict[str, Any]] = None,
     ) -> List[IMDataStructureDFG]:
 
-        base_dfg = obj.dfg
-        dfg_map = {group: DFG() for group in groups}
-
-        activity_to_group_map = {}
-        for group in groups:
-            for activity in group:
-                activity_to_group_map[activity] = group
-
-        for (a, b) in base_dfg.graph:
-            group_a = activity_to_group_map[a]
-            group_b = activity_to_group_map[b]
-            freq = base_dfg.graph[(a, b)]
-            if group_a == group_b:
-                dfg_map[group_a].graph[(a, b)] = freq
-            else:
-                dfg_map[group_a].end_activities[a] += freq
-                dfg_map[group_b].start_activities[b] += freq
-        for a in base_dfg.start_activities:
-            group_a = activity_to_group_map[a]
-            dfg_map[group_a].start_activities[a] += base_dfg.start_activities[a]
-        for a in base_dfg.end_activities:
-            group_a = activity_to_group_map[a]
-            dfg_map[group_a].end_activities[a] += base_dfg.end_activities[a]
-
-        return list(
-            map(
-                lambda g: IMDataStructureDFG(InductiveDFG(dfg=dfg_map[g], skip=False)),
-                groups,
-            )
-        )
+        return MaximalPartialOrderCutDFG.project(obj, groups, parameters=parameters)

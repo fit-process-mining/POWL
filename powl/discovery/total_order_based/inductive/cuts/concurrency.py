@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, Generic, Optional
+from typing import Any, Dict, Generic, Optional, Collection, List
 
 from pm4py.algo.discovery.inductive.cuts.concurrency import (
     ConcurrencyCut,
@@ -13,6 +13,8 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 )
 
 from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
+from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import \
+    MaximalPartialOrderCutDFG
 
 
 class POWLConcurrencyCut(ConcurrencyCut, ABC, Generic[T]):
@@ -30,4 +32,11 @@ class POWLConcurrencyCutUVCL(
 
 
 class POWLConcurrencyCutDFG(ConcurrencyCutDFG, POWLConcurrencyCut[IMDataStructureDFG]):
-    pass
+    @classmethod
+    def project(
+            cls,
+            obj: IMDataStructureDFG,
+            groups: List[Collection[Any]],
+            parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructureDFG]:
+        return MaximalPartialOrderCutDFG.project(obj, groups, parameters=parameters)
