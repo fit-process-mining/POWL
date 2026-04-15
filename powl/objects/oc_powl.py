@@ -1,5 +1,6 @@
 from powl.objects.tagged_powl.activity import Activity
 from powl.objects.tagged_powl.base import TaggedPOWL
+from powl.objects.tagged_powl.graph_base import GraphBacked
 
 
 class ObjectCentricPOWL:
@@ -80,7 +81,7 @@ def load_oc_powl(
                 convergence[activity],
                 deficiency[activity],
             )
-    else:
+    elif isinstance(flat_model, GraphBacked):
         oc_children = [
             load_oc_powl(sub, related, divergence, convergence, deficiency)
             for sub in flat_model.children
@@ -90,3 +91,5 @@ def load_oc_powl(
             for i in range(len(flat_model.children))
         }
         return ComplexModel(flat_model, mapping)
+    else:
+        raise TypeError("Unsupported type")

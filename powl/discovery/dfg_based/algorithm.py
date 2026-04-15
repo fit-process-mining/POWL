@@ -39,7 +39,7 @@ def get_variant(variant: POWLDiscoveryVariant) -> Type[DFGIMBasePOWL]:
 def apply(
     dfg: DFG,
     parameters: Optional[Dict[Any, Any]] = None,
-    variant=POWLDiscoveryVariant.DECISION_GRAPH_MAX,
+    variant=POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC,
 ) -> TaggedPOWL:
     if parameters is None:
         parameters = {}
