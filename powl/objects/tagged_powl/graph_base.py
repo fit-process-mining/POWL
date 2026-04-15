@@ -154,3 +154,18 @@ class GraphBacked(TaggedPOWL, ABC):
 
     def reachable(self, u: object, v: object) -> bool:
         return nx.has_path(self._g, u, v)
+
+    def _validate_node_mapping(self, mapping: dict[TaggedPOWL, TaggedPOWL]) -> None:
+        expected = set(self.get_nodes())
+        actual = set(mapping.keys())
+
+        missing = expected - actual
+        extra = actual - expected
+
+        if missing or extra:
+            parts = []
+            if missing:
+                parts.append(f"missing keys: {missing}")
+            if extra:
+                parts.append(f"extra keys: {extra}")
+            raise ValueError("Invalid node mapping: " + "; ".join(parts))

@@ -111,12 +111,47 @@ class PartialOrder(GraphBacked):
         return simplified
 
     def map_nodes(self, mapping: dict[TaggedPOWL, TaggedPOWL]) -> "PartialOrder":
-        return PartialOrder(
-            nodes=[mapping[n] for n in self.children],
-            edges=[(mapping[u], mapping[v]) for (u, v) in self.get_edges()],
+        self._validate_node_mapping(mapping)
+
+        image_nodes = set(mapping.values())
+        if len(mapping) == len(image_nodes):
+            return PartialOrder(
+                nodes=[mapping[n] for n in self.children],
+                edges=[(mapping[u], mapping[v]) for (u, v) in self.get_edges()],
+                min_freq=self.min_freq,
+                max_freq=self.max_freq,
+            )
+
+        tc = self.get_transitive_closure(fail_if_cyclic=True)
+
+        preorder = nx.DiGraph()
+        preorder.add_nodes_from(image_nodes)
+
+        for u, v in tc.edges():
+            U = mapping[u]
+            V = mapping[v]
+            if U != V:
+                preorder.add_edge(U, V)
+
+        preorder_tc = nx.transitive_closure(preorder)
+
+        final_edges = set()
+        for U in image_nodes:
+            for V in image_nodes:
+                if U == V:
+                    continue
+                uv = preorder_tc.has_edge(U, V)
+                vu = preorder_tc.has_edge(V, U)
+                if uv and not vu:
+                    final_edges.add((U, V))
+
+        result = PartialOrder(
+            nodes=image_nodes,
+            edges=final_edges,
             min_freq=self.min_freq,
             max_freq=self.max_freq,
         )
+        return result
 
     def flatten(self) -> TaggedPOWL:
 
