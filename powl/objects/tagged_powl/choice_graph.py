@@ -545,11 +545,34 @@ class ChoiceGraph(GraphBacked):
             self.mark_end(node_map[n])
 
     def map_nodes(self, mapping: dict[TaggedPOWL, TaggedPOWL]) -> "ChoiceGraph":
-        return ChoiceGraph(
-            nodes=[mapping[n] for n in self.children],
-            edges=[(mapping[u], mapping[v]) for (u, v) in self.get_edges()],
-            start_nodes=[mapping[n] for n in self.start_nodes()],
-            end_nodes=[mapping[n] for n in self.end_nodes()],
+
+        self._validate_node_mapping(mapping)
+        new_nodes = set(mapping.values())
+
+        if len(mapping) == len(new_nodes):
+            return ChoiceGraph(
+                nodes=[mapping[n] for n in self.children],
+                edges=[(mapping[u], mapping[v]) for (u, v) in self.get_edges()],
+                start_nodes=[mapping[n] for n in self.start_nodes()],
+                end_nodes=[mapping[n] for n in self.end_nodes()],
+                min_freq=self.min_freq,
+                max_freq=self.max_freq,
+            )
+
+        new_edges = {
+            (mapping[u], mapping[v])
+            for (u, v) in self.get_edges()
+            if mapping[u] != mapping[v]
+        }
+        new_start_nodes = {mapping[n] for n in self.start_nodes()}
+        new_end_nodes = {mapping[n] for n in self.end_nodes()}
+
+        result = ChoiceGraph(
+            nodes=new_nodes,
+            edges=new_edges,
+            start_nodes=new_start_nodes,
+            end_nodes=new_end_nodes,
             min_freq=self.min_freq,
             max_freq=self.max_freq,
         )
+        return result
