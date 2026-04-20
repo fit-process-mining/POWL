@@ -16,4 +16,4 @@ from powl.main import (
 )
 
 __name__ = "powl"
-__version__ = "2.3.5"
+__version__ = "2.3.6"
