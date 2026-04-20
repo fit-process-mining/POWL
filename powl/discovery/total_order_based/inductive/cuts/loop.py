@@ -82,48 +82,49 @@ class POWLLoopCutDFG(LoopCutDFG, POWLLoopCut[IMDataStructureDFG]):
     ) -> List[IMDataStructureDFG]:
         dfg = obj.dfg
 
-        skippable = [False for i in range(len(groups))]
+        do_group = groups[0]
+        dfgs = [DFG() for _ in groups]
+        skippable = [False for _ in groups]
 
-        do = groups[0]
+        activity_to_group_idx = {}
+        for i, group in enumerate(groups):
+            for activity in group:
+                activity_to_group_idx[activity] = i
 
-        dfgs = [DFG() for i in range(len(groups))]
-        activity_to_group_id = {}
-        for i in range(len(groups)):
-            for a in groups[i]:
-                activity_to_group_id[a] = i
-
-        for a in dfg.start_activities:
-            if a not in do:
+        for activity, freq in dfg.start_activities.items():
+            if activity not in do_group:
                 raise Exception("Start activities must be in the do part of the loop!")
-            dfgs[0].start_activities[a] = 1
+            dfgs[0].start_activities[activity] += freq
 
-        for a in dfg.end_activities:
-            if a not in do:
+        for activity, freq in dfg.end_activities.items():
+            if activity not in do_group:
                 raise Exception("End activities must be in the do part of the loop!")
-            dfgs[0].end_activities[a] = 1
+            dfgs[0].end_activities[activity] += freq
 
-        for (a, b) in dfg.graph:
-
-            i = activity_to_group_id[a]
-            j = activity_to_group_id[b]
+        for (a, b), freq in dfg.graph.items():
+            i = activity_to_group_idx[a]
+            j = activity_to_group_idx[b]
 
             if i == 0 and j == 0:
-                dfgs[0].graph[(a, b)] = dfg.graph[(a, b)]
-                # No need for this: if we have a case where the do part is followed by another execution of the do part, then we won't be able to split the execution during projection, and therefore, there this will be modeled as a self-loop in the do part
-                # if a in dfg.end_activities and b in dfg.start_activities:
-                # skippable[1] = True
+                dfgs[0].graph[(a, b)] = freq
+
             elif i > 0 and j > 0:
-                if i == j:
-                    dfgs[i].graph[(a, b)] = dfg.graph[(a, b)]
-                else:
+                if i != j:
                     raise Exception("Direct edges between different redo groups!")
-            elif (i == 0 and j > 0) or (i > 0 and j == 0):
-                dfgs[i].end_activities[a] = 1
-                dfgs[j].start_activities[b] = 1
+                dfgs[i].graph[(a, b)] = freq
+
+            elif i == 0 and j > 0:
+                dfgs[0].end_activities[a] += freq
+                dfgs[j].start_activities[b] += freq
+
+            elif i > 0 and j == 0:
+                dfgs[i].end_activities[a] += freq
+                dfgs[0].start_activities[b] += freq
+
             else:
                 raise Exception("We should never reach here!")
 
         return [
-            IMDataStructureDFG(InductiveDFG(dfg=dfgs[i], skip=skippable[i]))
-            for i in range(len(dfgs))
+            IMDataStructureDFG(InductiveDFG(dfg=dfg, skip=skip))
+            for dfg, skip in zip(dfgs, skippable)
         ]

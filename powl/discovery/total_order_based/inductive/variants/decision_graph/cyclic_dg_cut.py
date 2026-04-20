@@ -5,7 +5,9 @@ from typing import Any, Collection, Dict, List, Optional
 
 from pm4py.algo.discovery.inductive.cuts import utils as cut_util
 from pm4py.algo.discovery.inductive.cuts.abc import T
-from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
+from pm4py.algo.discovery.inductive.dtypes.im_dfg import InductiveDFG
+from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL, IMDataStructureDFG
+from pm4py.objects.dfg.obj import DFG
 from pm4py.util import exec_utils
 from pm4py.algo.discovery.inductive.variants.imf import IMFParameters
 
@@ -13,6 +15,8 @@ from powl.discovery.total_order_based.inductive.utils.filtering import FILTERING
 from powl.discovery.total_order_based.inductive.variants.decision_graph.max_decision_graph_cut import (
     MaximalDecisionGraphCut
 )
+from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import \
+    MaximalPartialOrderCutDFG
 
 
 class CyclicDecisionGraphCut(MaximalDecisionGraphCut[T], ABC):
@@ -72,3 +76,14 @@ class CyclicDecisionGraphCutUVCL(CyclicDecisionGraphCut[IMDataStructureUVCL], AB
                     logs[i][tuple(seg)] += freq
 
         return [IMDataStructureUVCL(l) for l in logs]
+
+
+class CyclicDecisionGraphCutDFG(CyclicDecisionGraphCut[IMDataStructureDFG], ABC):
+    @classmethod
+    def project(
+            cls,
+            obj: IMDataStructureDFG,
+            groups: List[Collection[Any]],
+            parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructureDFG]:
+        return MaximalPartialOrderCutDFG.project(obj, groups, parameters=parameters)

@@ -4,3 +4,4 @@ rustxes
 streamlit
 networkx
 shapely
+pandas>=2.2.0

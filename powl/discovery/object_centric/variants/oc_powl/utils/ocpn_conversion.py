@@ -8,9 +8,6 @@ from powl.objects.tagged_powl.partial_order import PartialOrder
 from powl.objects.oc_powl import ComplexModel, LeafNode, ObjectCentricPOWL
 
 
-DIV_IF_ALL_CHILDREN_DIV = True
-
-
 def generate_xor(children):
     if len(children) == 1:
         return children[0]
@@ -60,6 +57,107 @@ def clone_workflow_net(
     return new_net, new_im, new_fm
 
 
+# def _project_complex_graph_global_abstraction_of_diverging(oc_powl, object_type, related_activities, diverging, div_activities, div_edges):
+#     div_subtree = generate_flower_model(
+#         [Activity(label=a) for a in div_activities]
+#     )
+#     non_diverging = [
+#         i
+#         for i in range(len(oc_powl.oc_children))
+#         if oc_powl.oc_children[i].get_activities() & related_activities
+#            and i not in diverging
+#     ]
+#     if len(non_diverging) > 0:
+#         mapping = {
+#             oc_powl.flat_model.children[i]: (
+#                 project_oc_powl(
+#                     oc_powl.oc_children[i], object_type, div_edges
+#                 )
+#                 if i in non_diverging
+#                 else Activity(label=None)
+#             )
+#             for i in range(len(oc_powl.oc_children))
+#         }
+#         non_div_subtree = oc_powl.flat_model.map_nodes(mapping)
+#         return PartialOrder([non_div_subtree, div_subtree])
+#     else:
+#         return div_subtree
+
+
+def _project_complex_graph_local_abstraction_of_diverging(oc_powl, object_type, related_activities, diverging,
+                                                          div_edges):
+    parts = _partition_children(
+        oc_powl, diverging, related_activities, div_edges
+    )
+
+    mapping = {}
+
+    processed_ids = set()
+    for group in parts:
+        div_children = [
+            Activity(a)
+            for i in group
+            for a in oc_powl.oc_children[i].get_activities()
+                     & related_activities
+        ]
+        flower = generate_flower_model(div_children)
+        for i in group:
+            processed_ids.add(i)
+            mapping[oc_powl.flat_model.children[i]] = flower
+
+    for i in range(len(oc_powl.oc_children)):
+        if i in processed_ids:
+            continue
+        mapping[oc_powl.flat_model.children[i]] = project_oc_powl(
+            oc_powl.oc_children[i], object_type, div_edges
+        )
+
+    return oc_powl.flat_model.map_nodes(mapping)
+
+
+def _project_complex_graph(oc_powl, object_type, related_activities, div_edges) -> PartialOrder | ChoiceGraph:
+
+    # A child (submodel) is ONLY considered diverging iff
+    # (1) it has at least one relevant activity, and
+    # (ii) EVERY relevant activity is marked as "diverging"
+    diverging = [
+        i
+        for i in range(len(oc_powl.oc_children))
+        if oc_powl.oc_children[i].get_activities() & related_activities
+           and all(
+            object_type in oc_powl.get_type_information()[(a, "div")]
+            for a in oc_powl.oc_children[i].get_activities() & related_activities
+        )
+    ]
+
+    div_activities = set(
+        sum(
+            [
+                list(
+                    oc_powl.oc_children[i].get_activities() & related_activities
+                )
+                for i in diverging
+            ],
+            [],
+        )
+    )
+    div_activities = {a for a in div_activities if a != ""}
+
+    if div_activities:
+
+        return _project_complex_graph_local_abstraction_of_diverging(oc_powl, object_type, related_activities,
+                                                                     diverging, div_edges)
+
+    else:
+        mapping = {
+            oc_powl.flat_model.children[i]: project_oc_powl(
+                oc_powl.oc_children[i], object_type, div_edges
+            )
+            for i in range(len(oc_powl.oc_children))
+        }
+        return oc_powl.flat_model.map_nodes(mapping)
+
+
 def project_oc_powl(oc_powl: ObjectCentricPOWL, object_type, div_edges):
 
     if isinstance(oc_powl, LeafNode):
@@ -86,146 +184,28 @@ def project_oc_powl(oc_powl: ObjectCentricPOWL, object_type, div_edges):
         object_type in oc_powl.get_type_information()[(a, "div")]
         for a in related_activities
     ):
+        # If all related activities diverge, then the entire subtree is replaced by one flower model
         return generate_flower_model([Activity(label=a) for a in related_activities])
 
+
+    if isinstance(oc_powl.flat_model, PartialOrder) or isinstance(oc_powl.flat_model, ChoiceGraph):
+        return _project_complex_graph(oc_powl, object_type, related_activities, div_edges)
+
     else:
-        parallel = (
-            isinstance(oc_powl.flat_model, PartialOrder)
-            and len(oc_powl.flat_model.get_edges()) == 0
-        )
-        if parallel:
-            return PartialOrder(
-                nodes=[
-                    project_oc_powl(sub, object_type, div_edges)
-                    for sub in oc_powl.oc_children
-                ],
-            )
-
-        diverging = [
-            i
-            for i in range(len(oc_powl.oc_children))
-            if oc_powl.oc_children[i].get_activities() & related_activities
-            and all(
-                object_type in oc_powl.get_type_information()[(a, "div")]
-                for a in oc_powl.oc_children[i].get_activities() & related_activities
-            )
-        ]
-        non_diverging = [
-            i
-            for i in range(len(oc_powl.oc_children))
-            if oc_powl.oc_children[i].get_activities() & related_activities
-            and i not in diverging
-        ]
-
-        if isinstance(oc_powl.flat_model, PartialOrder):
-            div_activities = set(
-                sum(
-                    [
-                        list(
-                            oc_powl.oc_children[i].get_activities() & related_activities
-                        )
-                        for i in diverging
-                    ],
-                    [],
-                )
-            )
-            div_activities = {a for a in div_activities if a != ""}
-
-            if div_activities:
-                div_subtree = generate_flower_model(
-                    [Activity(label=a) for a in div_activities]
-                )
-                if len(non_diverging) > 0:
-                    mapping = {
-                        oc_powl.flat_model.children[i]: (
-                            project_oc_powl(
-                                oc_powl.oc_children[i], object_type, div_edges
-                            )
-                            if i in non_diverging
-                            else Activity(label=None)
-                        )
-                        for i in range(len(oc_powl.oc_children))
-                    }
-                    non_div_subtree = oc_powl.flat_model.map_nodes(mapping)
-                    return PartialOrder([non_div_subtree, div_subtree])
-                else:
-                    return div_subtree
-            else:
-                mapping = {
-                    oc_powl.flat_model.children[i]: project_oc_powl(
-                        oc_powl.oc_children[i], object_type, div_edges
-                    )
-                    for i in range(len(oc_powl.oc_children))
-                }
-                return oc_powl.flat_model.map_nodes(mapping)
-
-        elif isinstance(oc_powl.flat_model, ChoiceGraph):
-
-            if DIV_IF_ALL_CHILDREN_DIV:
-                parts = _partition_children(
-                    oc_powl, diverging, related_activities, div_edges
-                )
-
-                mapping = {}
-                processed_ids = set()
-                for group in parts:
-                    div_children = [
-                        Activity(a)
-                        for i in group
-                        for a in oc_powl.oc_children[i].get_activities()
-                        & related_activities
-                    ]
-                    flower = generate_flower_model(div_children)
-                    for i in group:
-                        processed_ids.add(i)
-                        mapping[oc_powl.flat_model.children[i]] = flower
-
-                for i in range(len(oc_powl.oc_children)):
-                    if i in processed_ids:
-                        continue
-                    mapping[oc_powl.flat_model.children[i]] = project_oc_powl(
-                        oc_powl.oc_children[i], object_type, div_edges
-                    )
-
-                return oc_powl.flat_model.map_nodes(mapping)
-
-            else:
-                parts = _partition_children(
-                    oc_powl, diverging, related_activities, div_edges
-                )
-
-                mapping = {}
-
-                for group in parts:
-                    if len(group) == 1:
-                        i = list(group)[0]
-                        mapping[oc_powl.flat_model.children[i]] = project_oc_powl(
-                            oc_powl.oc_children[i], object_type, div_edges
-                        )
-                    else:
-                        div_children = [
-                            project_oc_powl(
-                                oc_powl.oc_children[i], object_type, div_edges
-                            )
-                            for i in group
-                        ]
-                        flower = generate_flower_model(div_children)
-                        for i in group:
-                            mapping[oc_powl.flat_model.children[i]] = flower
-
-                return oc_powl.flat_model.map_nodes(mapping)
-
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
 
 
 def _partition_children(oc_powl, diverging, related_activities, div_edges):
+    """
+    - diverging: A child (submodel) is diverging iff EVERY relevant activity is marked as "diverging"
+    - div_edges: DFG edges (that were removed) where both activities are marked as diverging
+
+    This function merges "diverging" children whenever div_edges contains AT LEAST ONE edge connecting their activities
+    """
+
     edges = [tuple(edge) for edge in div_edges]
 
-    if DIV_IF_ALL_CHILDREN_DIV:
-        parts = [{i} for i in diverging]
-    else:
-        parts = [{i} for i in range(len(oc_powl.oc_children))]
+    parts = [{i} for i in diverging]
 
     def find_group(a):
         for g in parts:
@@ -249,6 +229,28 @@ def _partition_children(oc_powl, diverging, related_activities, div_edges):
 
 
 def handle_deficiency(oc_powl: ObjectCentricPOWL):
+    """
+    Resolve deficient activities by expanding one ambiguous leaf into an XOR over
+    all concrete object-type combinations it may involve.
+
+    Idea:
+    - related    = all object types associated with the activity
+    - deficient  = object types whose presence is optional / uncertain
+    - stable     = related - deficient         -> always present
+    - variable   = related ∩ deficient         -> may or may not be present
+
+    Example for an activity 'a':
+      related   = {order, item, invoice}
+      deficient = {item, invoice}
+      =>
+      stable    = {order}
+      variants  = {order},
+                  {order, item},
+                  {order, invoice},
+                  {order, item, invoice}
+
+    The original leaf is then replaced by an XOR over these explicit variants.
+    """
 
     if isinstance(oc_powl, LeafNode):
         if oc_powl.activity == "":
@@ -317,6 +319,7 @@ def convert_ocpowl_to_ocpn(oc_powl: ObjectCentricPOWL, divergence_matrices):
 
     convergent_activities = {}
     activities = set()
+    # Expand activities that are marked as deficient into several alternative variants (XORs) based on subsets of object types.
     oc_powl, special_activities = handle_deficiency(oc_powl)
 
     for ot in oc_powl.get_object_types():

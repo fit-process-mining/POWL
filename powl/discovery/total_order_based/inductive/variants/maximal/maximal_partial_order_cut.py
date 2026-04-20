@@ -241,6 +241,7 @@ class MaximalPartialOrderCutDFG(MaximalPartialOrderCut[IMDataStructureDFG]):
         groups: List[Collection[Any]],
         parameters: Optional[Dict[str, Any]] = None,
     ) -> List[IMDataStructureDFG]:
+
         """
         For each group g:
           - Keep only arcs (a,b) with a,b in g.
@@ -250,43 +251,31 @@ class MaximalPartialOrderCutDFG(MaximalPartialOrderCut[IMDataStructureDFG]):
                 original_end[x] + sum_{y not in g} count(x -> y)
           - 'skip' is set to False (all blocks are required in a partial-order composition).
         """
-        base = obj.dfg
 
-        act2grp: Dict[Any, int] = {}
-        for gi, g in enumerate(groups):
-            for a in g:
-                act2grp[a] = gi
+        base_dfg = obj.dfg
+        dfgs = [DFG() for _ in groups]
 
-        dfgs: List[DFG] = [DFG() for _ in groups]
-        starts_from_out: List[Counter] = [
-            Counter() for _ in groups
-        ]  # counts of y->x with y outside group
-        ends_to_out: List[Counter] = [
-            Counter() for _ in groups
-        ]  # counts of x->y with y outside group
+        activity_to_group_idx = {}
+        for i, group in enumerate(groups):
+            for activity in group:
+                activity_to_group_idx[activity] = i
 
-        # internal arcs and cross-boundary starts/ends
-        for (a, b), count in base.graph.items():
-            gi = act2grp[a]
-            gj = act2grp[b]
-            if gi == gj:
-                dfgs[gi].graph[(a, b)] = count
+        for (a, b), freq in base_dfg.graph.items():
+            i = activity_to_group_idx[a]
+            j = activity_to_group_idx[b]
+            if i == j:
+                dfgs[i].graph[(a, b)] = freq
             else:
-                starts_from_out[gj][b] += count
-                ends_to_out[gi][a] += count
+                dfgs[i].end_activities[a] += freq
+                dfgs[j].start_activities[b] += freq
 
-        # start/end activities inside each projected DFG
-        for gi, g in enumerate(groups):
-            dfi = dfgs[gi]
-            for a in g:
-                start_count = starts_from_out[gi][a] + base.start_activities.get(a, 0)
-                end_count = ends_to_out[gi][a] + base.end_activities.get(a, 0)
-                if start_count > 0:
-                    dfi.start_activities[a] = start_count
-                if end_count > 0:
-                    dfi.end_activities[a] = end_count
+        for a, freq in base_dfg.start_activities.items():
+            dfgs[activity_to_group_idx[a]].start_activities[a] += freq
+
+        for a, freq in base_dfg.end_activities.items():
+            dfgs[activity_to_group_idx[a]].end_activities[a] += freq
 
         return [
-            IMDataStructureDFG(InductiveDFG(dfg=dfgs[i], skip=False))
-            for i in range(len(dfgs))
+            IMDataStructureDFG(InductiveDFG(dfg=dfg, skip=False))
+            for dfg in dfgs
         ]
