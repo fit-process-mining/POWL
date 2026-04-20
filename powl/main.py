@@ -156,7 +156,7 @@ def discover_petri_net_from_ocel(ocel: OCEL, variant=OC_Variants.OC_POWL, parame
     return oc_discovery(ocel, variant=variant, parameters=parameters)
 
 
-def discover_from_dfg(dfg: DFG, variant=POWLDiscoveryVariant.MAXIMAL, parameters=None):
+def discover_from_dfg(dfg: DFG, variant=POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC, parameters=None):
     return dfg_discovery(dfg, variant=variant, parameters=parameters)
 
 
