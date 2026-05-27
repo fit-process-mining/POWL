@@ -9,18 +9,29 @@ from pm4py.objects.dfg import util as dfu
 
 from powl.discovery.total_order_based.inductive.cuts.concurrency import (
     POWLConcurrencyCutDFG,
+    POWLConcurrencyCutPOT,
 )
 from powl.discovery.total_order_based.inductive.cuts.factory import CutFactory, T
-from powl.discovery.total_order_based.inductive.cuts.loop import POWLLoopCutUVCL
+from powl.discovery.total_order_based.inductive.cuts.loop import (
+    POWLLoopCutDFG,
+    POWLLoopCutPOT,
+    POWLLoopCutUVCL,
+)
 from powl.discovery.total_order_based.inductive.cuts.sequence import (
     POWLStrictSequenceCutDFG,
+    POWLStrictSequenceCutPOT,
 )
 from powl.discovery.total_order_based.inductive.cuts.xor import (
     POWLExclusiveChoiceCutDFG,
+    POWLExclusiveChoiceCutPOT,
     POWLExclusiveChoiceCutUVCL,
+)
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
 )
 from powl.discovery.total_order_based.inductive.variants.dynamic_clustering_frequency.dynamic_clustering_frequency_partial_order_cut import (
     DynamicClusteringFrequencyPartialOrderCutDFG,
+    DynamicClusteringFrequencyPartialOrderCutPOT,
     DynamicClusteringFrequencyPartialOrderCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.modeling import InductiveModel
@@ -40,8 +51,16 @@ class CutFactoryPOWLDynamicClusteringFrequency(CutFactory):
                 POWLExclusiveChoiceCutDFG,
                 POWLStrictSequenceCutDFG,
                 POWLConcurrencyCutDFG,
-                POWLLoopCutUVCL,
+                POWLLoopCutDFG,
                 DynamicClusteringFrequencyPartialOrderCutDFG,
+            ]
+        elif type(obj) is IMDataStructurePOT:
+            return [
+                POWLExclusiveChoiceCutPOT,
+                POWLStrictSequenceCutPOT,
+                POWLConcurrencyCutPOT,
+                POWLLoopCutPOT,
+                DynamicClusteringFrequencyPartialOrderCutPOT,
             ]
         else:
             return []

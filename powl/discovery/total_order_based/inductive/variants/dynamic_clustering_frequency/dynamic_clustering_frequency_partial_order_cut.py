@@ -12,6 +12,10 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 )
 from pm4py.objects.dfg import util as dfu
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    combined_project_pot_on_groups,
+)
 from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import (
     MaximalPartialOrderCutDFG,
     project_on_groups_with_unique_activities,
@@ -35,6 +39,8 @@ def generate_order(obj: T, clusters, order_frequency_ratio):
         efg_freq = compute_efg_frequencies(obj, groups=po.nodes)
     elif type(obj) is IMDataStructureDFG:
         efg_freq = compute_dfg_transitive_closure(obj.dfg.graph, groups=po.nodes)
+    elif type(obj) is IMDataStructurePOT:
+        efg_freq = compute_efg_counter_frequencies(obj.efg, groups=po.nodes)
     else:
         raise NotImplementedError
 
@@ -192,6 +198,22 @@ def compute_dfg_transitive_closure(dfg: Counter, groups) -> Dict[Tuple[str, str]
     return result
 
 
+def compute_efg_counter_frequencies(efg: Counter, groups) -> Dict[Tuple[str, str], int]:
+    activity_to_cluster = {}
+    for cluster in groups:
+        for activity in cluster:
+            activity_to_cluster[activity] = cluster
+
+    result = {(g1, g2): 0 for g1 in groups for g2 in groups}
+    for (a, b), freq in efg.items():
+        cluster_1 = activity_to_cluster.get(a)
+        cluster_2 = activity_to_cluster.get(b)
+        if cluster_1 is not None and cluster_2 is not None:
+            result[(cluster_1, cluster_2)] += freq
+
+    return result
+
+
 class DynamicClusteringFrequencyPartialOrderCut(Cut[T], ABC, Generic[T]):
     @classmethod
     def operator(
@@ -261,3 +283,16 @@ class DynamicClusteringFrequencyPartialOrderCutDFG(
         parameters: Optional[Dict[str, Any]] = None,
     ) -> List[IMDataStructureDFG]:
         return MaximalPartialOrderCutDFG.project(obj, groups, parameters)
+
+
+class DynamicClusteringFrequencyPartialOrderCutPOT(
+    DynamicClusteringFrequencyPartialOrderCut[IMDataStructurePOT]
+):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return combined_project_pot_on_groups(obj.data_structure, groups)

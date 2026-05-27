@@ -9,6 +9,10 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
 from pm4py.objects.dfg import util as dfu
 from pm4py.statistics.eventually_follows.uvcl.get import apply as to_efg
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    combined_project_pot_on_groups,
+)
 from powl.objects.BinaryRelation import BinaryRelation
 from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
 
@@ -161,7 +165,7 @@ class BruteForcePartialOrderCut(Cut[T], ABC, Generic[T]):
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
     ) -> Optional[BinaryRelation]:
         dfg_graph = obj.dfg
-        efg = to_efg(obj)
+        efg = obj.efg if isinstance(obj, IMDataStructurePOT) else to_efg(obj)
         alphabet = sorted(dfu.get_vertices(dfg_graph), key=lambda g: g.__str__())
         for part in partition(alphabet):
             po = generate_order(part, efg)
@@ -201,3 +205,14 @@ class BruteForcePartialOrderCutUVCL(BruteForcePartialOrderCut[IMDataStructureUVC
                 c[tuple(filter(lambda e: e in g, t))] = obj.data_structure[t]
             r.append(c)
         return list(map(lambda l: IMDataStructureUVCL(l), r))
+
+
+class BruteForcePartialOrderCutPOT(BruteForcePartialOrderCut[IMDataStructurePOT]):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return combined_project_pot_on_groups(obj.data_structure, groups)

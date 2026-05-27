@@ -3,6 +3,11 @@ from enum import auto, Enum
 
 from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    PartialOrderTrace,
+)
+
 
 class FilteringType(Enum):
     DYNAMIC = auto()
@@ -15,6 +20,12 @@ FILTERING_THRESHOLD = "weight_factor_filtering_threshold"
 FILTERING_TYPE = "filtering_type"
 
 
+def _wrap_filtered_log_like(original_log, filtered_log):
+    if any(isinstance(variant, PartialOrderTrace) for variant in original_log):
+        return IMDataStructurePOT(filtered_log)
+    return IMDataStructureUVCL(filtered_log)
+
+
 def filter_most_frequent_variants(log):
     to_remove_freq = min([freq for var, freq in log.items()])
     new_log = Counter()
@@ -23,7 +34,7 @@ def filter_most_frequent_variants(log):
             continue
         new_log[var] = freq
 
-    return IMDataStructureUVCL(new_log)
+    return _wrap_filtered_log_like(log, new_log)
 
 
 def filter_most_frequent_variants_with_decreasing_factor(log, decreasing_factor):
@@ -42,4 +53,4 @@ def filter_most_frequent_variants_with_decreasing_factor(log, decreasing_factor)
         else:
             break
 
-    return IMDataStructureUVCL(new_log)
+    return _wrap_filtered_log_like(log, new_log)

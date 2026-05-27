@@ -19,6 +19,10 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 from pm4py.objects.dfg import util as dfu
 from pm4py.objects.dfg.obj import DFG
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    combined_project_pot_on_groups,
+)
 from powl.discovery.total_order_based.inductive.modeling import SequenceSpec
 
 
@@ -50,6 +54,27 @@ class POWLStrictSequenceCutUVCL(
     StrictSequenceCutUVCL, StrictSequenceCut[IMDataStructureUVCL], POWLSequenceCutUVCL
 ):
     pass
+
+
+class POWLSequenceCutPOT(POWLSequenceCut[IMDataStructurePOT]):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return combined_project_pot_on_groups(obj.data_structure, groups)
+
+
+class POWLStrictSequenceCutPOT(
+    StrictSequenceCut[IMDataStructurePOT], POWLSequenceCutPOT
+):
+    @classmethod
+    def holds(
+        cls, obj: T, parameters: Optional[Dict[str, Any]] = None
+    ) -> Optional[List[Collection[Any]]]:
+        return StrictSequenceCut.holds(obj, parameters)
 
 
 class POWLSequenceCutDFG(SequenceCutDFG, POWLSequenceCut[IMDataStructureDFG]):

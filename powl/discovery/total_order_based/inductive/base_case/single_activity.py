@@ -6,6 +6,9 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 )
 
 from powl.discovery.total_order_based.inductive.base_case.abc import BaseCase
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+)
 
 from powl.objects.tagged_powl.activity import Activity
 
@@ -55,3 +58,23 @@ class SingleActivityBaseCaseDFG(BaseCase[IMDataStructureDFG]):
         parameters: Optional[Dict[str, Any]] = None,
     ) -> Activity:
         return Activity(label=list(obj.dfg.start_activities)[0])
+
+
+class SingleActivityBaseCasePOT(BaseCase[IMDataStructurePOT]):
+    @classmethod
+    def holds(
+        cls, obj=IMDataStructurePOT, parameters: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        if len(obj.data_structure.keys()) != 1:
+            return False
+        return len(list(obj.data_structure.keys())[0]) <= 1
+
+    @classmethod
+    def leaf(
+        cls, obj=IMDataStructurePOT, parameters: Optional[Dict[str, Any]] = None
+    ) -> Activity:
+        for t in obj.data_structure:
+            if len(t) > 0:
+                return Activity(label=t.activities[0])
+            else:
+                return Activity(label=None)

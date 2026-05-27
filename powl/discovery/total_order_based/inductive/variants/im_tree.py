@@ -4,7 +4,10 @@ from enum import Enum
 from itertools import combinations
 from typing import Any, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
-from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
+from pm4py.algo.discovery.inductive.dtypes.im_ds import (
+    IMDataStructure,
+    IMDataStructureUVCL,
+)
 from pm4py.algo.discovery.inductive.fall_through.empty_traces import EmptyTracesUVCL
 from pm4py.algo.discovery.inductive.variants.imf import IMFParameters
 from pm4py.objects.process_tree.obj import Operator
@@ -35,7 +38,7 @@ from powl.discovery.total_order_based.inductive.modeling import (
 from powl.general_utils.dfg_frequency_filtering import filter_dfg_noise_keep_activities_and_repair
 from powl.objects.tagged_powl.base import TaggedPOWL
 
-T = TypeVar("T", bound=IMDataStructureUVCL)
+T = TypeVar("T", bound=IMDataStructure)
 
 
 class Parameters(Enum):

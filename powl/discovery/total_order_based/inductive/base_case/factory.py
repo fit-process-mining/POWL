@@ -9,11 +9,16 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 from powl.discovery.total_order_based.inductive.base_case.abc import BaseCase
 from powl.discovery.total_order_based.inductive.base_case.empty_log import (
     EmptyLogBaseCaseDFG,
+    EmptyLogBaseCasePOT,
     EmptyLogBaseCaseUVCL,
 )
 from powl.discovery.total_order_based.inductive.base_case.single_activity import (
     SingleActivityBaseCaseDFG,
+    SingleActivityBaseCasePOT,
     SingleActivityBaseCaseUVCL,
+)
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
 )
 
 from powl.objects.tagged_powl.base import TaggedPOWL
@@ -31,6 +36,8 @@ class BaseCaseFactory:
             return [EmptyLogBaseCaseUVCL, SingleActivityBaseCaseUVCL]
         elif type(obj) is IMDataStructureDFG:
             return [EmptyLogBaseCaseDFG, SingleActivityBaseCaseDFG]
+        elif type(obj) is IMDataStructurePOT:
+            return [EmptyLogBaseCasePOT, SingleActivityBaseCasePOT]
         else:
             return []
 

@@ -8,14 +8,23 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 from pm4py.objects.dfg import util as dfu
 
 from powl.discovery.total_order_based.inductive.cuts.concurrency import (
+    POWLConcurrencyCutPOT,
     POWLConcurrencyCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.cuts.factory import CutFactory, T
-from powl.discovery.total_order_based.inductive.cuts.loop import POWLLoopCutUVCL
+from powl.discovery.total_order_based.inductive.cuts.loop import (
+    POWLLoopCutPOT,
+    POWLLoopCutUVCL,
+)
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+)
 from powl.discovery.total_order_based.inductive.variants.decision_graph.cyclic_dg_cut_strict import (
+    StrictCyclicDecisionGraphCutPOT,
     StrictCyclicDecisionGraphCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import (
+    MaximalPartialOrderCutPOT,
     MaximalPartialOrderCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.modeling import InductiveModel
@@ -31,6 +40,13 @@ class CutFactoryCyclicDecisionGraphStrict(CutFactory):
                 MaximalPartialOrderCutUVCL,
                 POWLConcurrencyCutUVCL,
                 POWLLoopCutUVCL,
+            ]
+        elif type(obj) is IMDataStructurePOT:
+            return [
+                StrictCyclicDecisionGraphCutPOT,
+                MaximalPartialOrderCutPOT,
+                POWLConcurrencyCutPOT,
+                POWLLoopCutPOT,
             ]
         elif type(obj) is IMDataStructureDFG:
             return NotImplementedError

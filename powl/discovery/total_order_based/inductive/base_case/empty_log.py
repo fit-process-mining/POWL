@@ -7,6 +7,9 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
 )
 
 from powl.discovery.total_order_based.inductive.base_case.abc import BaseCase, T
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+)
 from powl.objects.tagged_powl.activity import Activity
 
 
@@ -39,3 +42,11 @@ class EmptyLogBaseCaseDFG(EmptyLogBaseCase[IMDataStructureDFG]):
             and len(dfg.start_activities) == 0
             and len(dfg.end_activities) == 0
         )
+
+
+class EmptyLogBaseCasePOT(EmptyLogBaseCase[IMDataStructurePOT]):
+    @classmethod
+    def holds(
+        cls, obj=IMDataStructurePOT, parameters: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        return len(obj.data_structure) == 0

@@ -8,23 +8,31 @@ from pm4py.objects.dfg import util as dfu
 
 from powl.discovery.total_order_based.inductive.cuts.concurrency import (
     POWLConcurrencyCutDFG,
+    POWLConcurrencyCutPOT,
     POWLConcurrencyCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.cuts.factory import CutFactory, S, T
 from powl.discovery.total_order_based.inductive.cuts.loop import (
     POWLLoopCutDFG,
+    POWLLoopCutPOT,
     POWLLoopCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.cuts.sequence import (
     POWLStrictSequenceCutDFG,
+    POWLStrictSequenceCutPOT,
     POWLStrictSequenceCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.cuts.xor import (
     POWLExclusiveChoiceCutDFG,
+    POWLExclusiveChoiceCutPOT,
     POWLExclusiveChoiceCutUVCL,
+)
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
 )
 from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import (
     MaximalPartialOrderCutDFG,
+    MaximalPartialOrderCutPOT,
     MaximalPartialOrderCutUVCL,
 )
 from powl.discovery.total_order_based.inductive.modeling import InductiveModel
@@ -50,6 +58,14 @@ class CutFactoryPOWLMaximal(CutFactory):
                 POWLConcurrencyCutDFG,
                 POWLLoopCutDFG,
                 MaximalPartialOrderCutDFG,
+            ]
+        elif type(obj) is IMDataStructurePOT:
+            return [
+                POWLExclusiveChoiceCutPOT,
+                POWLStrictSequenceCutPOT,
+                POWLConcurrencyCutPOT,
+                POWLLoopCutPOT,
+                MaximalPartialOrderCutPOT,
             ]
         else:
             return []

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, Generic, Optional
+from typing import Any, Collection, Dict, Generic, List, Optional
 
 from pm4py.algo.discovery.inductive.cuts.xor import (
     ExclusiveChoiceCut,
@@ -12,6 +12,10 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
     IMDataStructureUVCL,
 )
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    split_project_pot_on_groups,
+)
 from powl.discovery.total_order_based.inductive.modeling import XorSpec
 
 
@@ -31,3 +35,16 @@ class POWLExclusiveChoiceCutDFG(
     ExclusiveChoiceCutDFG, POWLExclusiveChoiceCut[IMDataStructureDFG], ABC
 ):
     pass
+
+
+class POWLExclusiveChoiceCutPOT(
+    POWLExclusiveChoiceCut[IMDataStructurePOT], ABC
+):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return split_project_pot_on_groups(obj.data_structure, groups)

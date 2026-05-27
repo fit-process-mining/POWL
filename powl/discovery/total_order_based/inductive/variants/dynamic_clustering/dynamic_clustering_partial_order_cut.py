@@ -9,6 +9,10 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
 from pm4py.objects.dfg import util as dfu
 from pm4py.statistics.eventually_follows.uvcl.get import apply as to_efg
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    combined_project_pot_on_groups,
+)
 from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial_order_cut import (
     project_on_groups_with_unique_activities,
 )
@@ -149,7 +153,7 @@ class DynamicClusteringPartialOrderCut(Cut[T], ABC, Generic[T]):
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
     ) -> Optional[BinaryRelation]:
         alphabet = sorted(dfu.get_vertices(obj.dfg), key=lambda g: g.__str__())
-        efg = to_efg(obj)
+        efg = obj.efg if isinstance(obj, IMDataStructurePOT) else to_efg(obj)
         clusters = [[a] for a in alphabet]
         po = generate_order(clusters, efg)
         return po
@@ -182,3 +186,16 @@ class DynamicClusteringPartialOrderCutUVCL(
         parameters: Optional[Dict[str, Any]] = None,
     ) -> List[IMDataStructureUVCL]:
         return project_on_groups_with_unique_activities(obj.data_structure, groups)
+
+
+class DynamicClusteringPartialOrderCutPOT(
+    DynamicClusteringPartialOrderCut[IMDataStructurePOT]
+):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return combined_project_pot_on_groups(obj.data_structure, groups)

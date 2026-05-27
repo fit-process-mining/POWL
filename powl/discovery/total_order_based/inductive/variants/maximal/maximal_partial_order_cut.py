@@ -22,6 +22,10 @@ from powl.discovery.total_order_based.inductive.utils.filtering import (
 )
 
 from powl.general_utils.efg_frequency_filtering import filter_efg_based_on_filtered_dfg
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    combined_project_pot_on_groups,
+)
 from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
 from powl.objects.BinaryRelation import BinaryRelation
 
@@ -167,7 +171,7 @@ class MaximalPartialOrderCut(Cut[T], ABC, Generic[T]):
                     IMFParameters.NOISE_THRESHOLD, parameters, 0.0
                 )
 
-        if type(obj) is IMDataStructureUVCL:
+        if type(obj) is IMDataStructureUVCL or type(obj) is IMDataStructurePOT:
             efg = filter_efg_based_on_filtered_dfg(obj, alphabet, dfg, noise_threshold)
         elif type(obj) is IMDataStructureDFG:
             _, post_sets = get_transitive_relations(dfg)
@@ -279,3 +283,14 @@ class MaximalPartialOrderCutDFG(MaximalPartialOrderCut[IMDataStructureDFG]):
             IMDataStructureDFG(InductiveDFG(dfg=dfg, skip=False))
             for dfg in dfgs
         ]
+
+
+class MaximalPartialOrderCutPOT(MaximalPartialOrderCut[IMDataStructurePOT]):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return combined_project_pot_on_groups(obj.data_structure, groups)

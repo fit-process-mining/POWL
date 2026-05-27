@@ -5,6 +5,10 @@ from typing import TypeVar
 from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
 from pm4py.objects.dfg.obj import DFG
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+)
+
 T = TypeVar("T", bound=IMDataStructureUVCL)
 
 
@@ -308,4 +312,6 @@ def filter_dfg_noise_keep_activities_and_repair(obj, noise_threshold):
         if not progressed:
             raise ValueError("Repair made no progress; this should be impossible under the connectivity assumption.")
 
+    if isinstance(obj, IMDataStructurePOT):
+        return IMDataStructurePOT(obj.data_structure, dfg, obj.efg)
     return IMDataStructureUVCL(obj.data_structure, dfg)
