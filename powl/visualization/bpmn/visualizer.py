@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 import graphviz
 from pm4py.objects.bpmn.obj import BPMN
 from pm4py.util import exec_utils
-from pm4py.visualization.bpmn.variants import classic
+from pm4py.visualization.bpmn.variants import classic, dagrejs
 
 
 class Variants(Enum):

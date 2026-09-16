@@ -36,7 +36,7 @@ def layout_bpmn(bpmn_model: pm4py.objects.bpmn.obj.BPMN) -> str:
     """
     Apply layout to a BPMN model.
 
-    :param bpmn_model: BPMN model as a string or PM4Py BPMN object
+    :param bpmn_model: PM4Py BPMN object (for raw XML strings, use layout_bpmn_xml)
     :return: String representation of the layouted BPMN model
     """
     if isinstance(bpmn_model, str):
