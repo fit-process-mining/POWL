@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 from pm4py.objects.bpmn.exporter.variants.etree import get_xml_string
@@ -17,6 +17,10 @@ NAMESPACES = {
     "dc": "http://www.omg.org/spec/DD/20100524/DC",
     "di": "http://www.omg.org/spec/DD/20100524/DI",
 }
+
+
+def _strip_ns(tag: str) -> str:
+    return tag.split("}", 1)[1] if "}" in tag else tag
 
 
 def _pools_to_tasks(
@@ -45,44 +49,54 @@ def _color_subgraph(
     graph: nx.DiGraph,
     start_node,
     end_node,
-    coloring: Dict[str, str],
+    coloring: Dict[Any, str],
     main_color: str,
-) -> Dict[str, str]:
+) -> Dict[Any, str]:
     list_of_paths = list(nx.all_simple_paths(graph, source=start_node, target=end_node))
     nodes_in_subgraph = set(node for path in list_of_paths for node in path)
     subgraph = graph.subgraph(nodes_in_subgraph).copy()
     used_colors = [
-        coloring[str(node)]
+        coloring[node]
         for node in subgraph.nodes
-        if str(node) in coloring and graph.nodes[node].get("content") is not None
+        if node in coloring and graph.nodes[node].get("content") is not None
     ]
     if len(set(used_colors)) == 1:
         color = used_colors[0]
         for node in subgraph.nodes:
-            coloring[str(node)] = color
+            coloring[node] = color
     return coloring
 
 
-def _get_predecessors_color(G: nx.DiGraph, node, coloring: Dict[str, str]) -> Optional[str]:
-    for predecessor in G.predecessors(node):
-        if str(predecessor) in coloring:
-            return coloring[str(predecessor)]
+def _get_predecessors_color(G: nx.DiGraph, node, coloring: Dict[Any, str]) -> Optional[str]:
+    predecessors = list(G.predecessors(node))
+    # Prioritize concrete tasks with explicit resource assignments
+    for pred in predecessors:
+        if pred in coloring and G.nodes[pred].get("content") is not None:
+            return coloring[pred]
+    for pred in predecessors:
+        if pred in coloring:
+            return coloring[pred]
     return None
 
 
-def _get_successors_color(G: nx.DiGraph, node, coloring: Dict[str, str]) -> Optional[str]:
-    for successor in G.successors(node):
-        if str(successor) in coloring:
-            return coloring[str(successor)]
+def _get_successors_color(G: nx.DiGraph, node, coloring: Dict[Any, str]) -> Optional[str]:
+    successors = list(G.successors(node))
+    # Prioritize concrete tasks with explicit resource assignments
+    for succ in successors:
+        if succ in coloring and G.nodes[succ].get("content") is not None:
+            return coloring[succ]
+    for succ in successors:
+        if succ in coloring:
+            return coloring[succ]
     return None
 
 
-def _color_graph(graph: nx.DiGraph, pools: Dict[str, Set[str]]) -> Dict[str, str]:
+def _color_graph(graph: nx.DiGraph, pools: Dict[str, Set[str]]) -> Dict[Any, str]:
     """Color the graph nodes based on pool assignments."""
     pool_with_most_tasks = (
         max(pools, key=lambda k: len(pools[k])) if pools else "DefaultPool"
     )
-    coloring: Dict[str, str] = {}
+    coloring: Dict[Any, str] = {}
 
     for pool, tasks in pools.items():
         for task in tasks:
@@ -95,11 +109,11 @@ def _color_graph(graph: nx.DiGraph, pools: Dict[str, Set[str]]) -> Dict[str, str
                 None,
             )
             if node_for_task is not None:
-                coloring[str(node_for_task)] = pool
+                coloring[node_for_task] = pool
 
     for node in graph.nodes:
+        counterparts = graph.nodes[node].get("paired_with") or []
         if graph.nodes[node].get("type") == "diverging":
-            counterparts = graph.nodes[node].get("paired_with") or []
             for counterpart in counterparts:
                 if counterpart in graph.nodes:
                     coloring = _color_subgraph(
@@ -107,26 +121,24 @@ def _color_graph(graph: nx.DiGraph, pools: Dict[str, Set[str]]) -> Dict[str, str
                     )
 
     for node in graph.nodes:
-        node_str = str(node)
-        if node_str not in coloring:
-            if "gateway" in node_str.lower():
+        if node not in coloring:
+            if "Gateway" in str(node):
                 gw_type = _get_gateway_type(graph, node)
                 if gw_type == "converging":
                     c = _get_predecessors_color(graph, node, coloring)
                     if c:
-                        coloring[node_str] = c
+                        coloring[node] = c
                 elif gw_type == "diverging":
                     c = _get_successors_color(graph, node, coloring)
                     if c:
-                        coloring[node_str] = c
-                if node_str not in coloring:
-                    coloring[node_str] = pool_with_most_tasks
+                        coloring[node] = c
+                if node not in coloring:
+                    coloring[node] = pool_with_most_tasks
 
     for node in graph.nodes:
-        node_str = str(node)
-        if node_str not in coloring:
+        if node not in coloring:
             node_type = str(graph.nodes[node].get("type", ""))
-            if node_type == "startEvent" or "start" in node_str.lower():
+            if node_type == "startEvent" or "start" in str(node).lower():
                 successors = list(graph.successors(node))
                 visited = set()
                 while successors:
@@ -134,11 +146,11 @@ def _color_graph(graph: nx.DiGraph, pools: Dict[str, Set[str]]) -> Dict[str, str
                     if cur in visited:
                         continue
                     visited.add(cur)
-                    if str(cur) in coloring:
-                        coloring[node_str] = coloring[str(cur)]
+                    if cur in coloring:
+                        coloring[node] = coloring[cur]
                         break
                     successors.extend(graph.successors(cur))
-            elif node_type == "endEvent" or "end" in node_str.lower():
+            elif node_type == "endEvent" or "end" in str(node).lower():
                 predecessors = list(graph.predecessors(node))
                 visited = set()
                 while predecessors:
@@ -146,22 +158,21 @@ def _color_graph(graph: nx.DiGraph, pools: Dict[str, Set[str]]) -> Dict[str, str
                     if cur in visited:
                         continue
                     visited.add(cur)
-                    if str(cur) in coloring:
-                        coloring[node_str] = coloring[str(cur)]
+                    if cur in coloring:
+                        coloring[node] = coloring[cur]
                         break
                     predecessors.extend(graph.predecessors(cur))
 
     for node in graph.nodes:
-        node_str = str(node)
-        if node_str not in coloring:
-            coloring[node_str] = pool_with_most_tasks
+        if node not in coloring:
+            coloring[node] = pool_with_most_tasks
 
     return coloring
 
 
 def _add_intermediate_events_to_graph(
-    G: nx.DiGraph, coloring: Dict[str, str]
-) -> Tuple[nx.DiGraph, Dict[str, str]]:
+    G: nx.DiGraph, coloring: Dict[Any, str]
+) -> Tuple[nx.DiGraph, Dict[Any, str]]:
     """Insert intermediate throw and catch message events for edges crossing pools."""
     G_new = G.copy()
     coloring_new = coloring.copy()
@@ -170,16 +181,15 @@ def _add_intermediate_events_to_graph(
     edges_to_remove = []
 
     for u, v in edges_in_graph:
-        u_str, v_str = str(u), str(v)
-        if coloring.get(u_str) != coloring.get(v_str):
-            throw_node_id = f"IntermediateThrowEvent_{abs(hash(u_str))}_{abs(hash(v_str))}"
-            catch_node_id = f"IntermediateCatchEvent_{abs(hash(u_str))}_{abs(hash(v_str))}"
+        if coloring.get(u) != coloring.get(v):
+            throw_node_id = f"IntermediateThrowEvent_{abs(hash(str(u)))}_{abs(hash(str(v)))}"
+            catch_node_id = f"IntermediateCatchEvent_{abs(hash(str(u)))}_{abs(hash(str(v)))}"
 
             G_new.add_node(throw_node_id, type="throw")
-            coloring_new[throw_node_id] = coloring[u_str]
+            coloring_new[throw_node_id] = coloring[u]
 
             G_new.add_node(catch_node_id, type="catch")
-            coloring_new[catch_node_id] = coloring[v_str]
+            coloring_new[catch_node_id] = coloring[v]
 
             edges_to_remove.append((u, v))
             edges_to_add.append((u, throw_node_id))
@@ -191,16 +201,59 @@ def _add_intermediate_events_to_graph(
     return G_new, coloring_new
 
 
-def _strip_ns(tag: str) -> str:
-    if "}" in tag:
-        return tag.split("}", 1)[1]
-    return tag
+def _propagate_lanes(
+    G: nx.DiGraph,
+    coloring: Dict[Any, str],
+    activity_to_pool_lane: Dict[str, Tuple[str, str]],
+) -> Dict[Any, str]:
+    """Assign every flow node to a lane within its pool by following task lane assignments."""
+    node_to_lane: Dict[Any, str] = {}
+    for n, d in G.nodes(data=True):
+        content = d.get("content")
+        if content in activity_to_pool_lane:
+            node_to_lane[n] = activity_to_pool_lane[content][1]
+
+    # Propagate along intra-pool edges
+    for _ in range(5):
+        for n in list(G.nodes):
+            if n in node_to_lane:
+                continue
+            pool = coloring.get(n)
+            preds = [p for p in G.predecessors(n) if coloring.get(p) == pool and p in node_to_lane]
+            succs = [s for s in G.successors(n) if coloring.get(s) == pool and s in node_to_lane]
+            if "Gateway" in str(n):
+                gw_type = _get_gateway_type(G, n)
+                if gw_type == "converging" and preds:
+                    node_to_lane[n] = node_to_lane[preds[0]]
+                elif gw_type == "diverging" and succs:
+                    node_to_lane[n] = node_to_lane[succs[0]]
+                elif preds:
+                    node_to_lane[n] = node_to_lane[preds[0]]
+                elif succs:
+                    node_to_lane[n] = node_to_lane[succs[0]]
+            else:
+                if preds:
+                    node_to_lane[n] = node_to_lane[preds[0]]
+                elif succs:
+                    node_to_lane[n] = node_to_lane[succs[0]]
+
+    pool_to_first_lane = {}
+    for a, (p, l) in activity_to_pool_lane.items():
+        if p not in pool_to_first_lane:
+            pool_to_first_lane[p] = l
+    for n in G.nodes:
+        if n not in node_to_lane:
+            p = coloring.get(n)
+            node_to_lane[n] = pool_to_first_lane.get(p, "DefaultLane")
+
+    return node_to_lane
 
 
 def _build_unlayouted_collaboration_xml(
     flat_xml_str: str,
     activity_to_pool_lane: Dict[str, Tuple[str, str]],
     element_id_to_pool: Dict[str, str],
+    element_id_to_lane: Dict[str, str],
 ) -> str:
     """Restructure flat BPMN 2.0 XML into collaboration with pools, lanes, and message flows."""
     for prefix, uri in NAMESPACES.items():
@@ -223,88 +276,49 @@ def _build_unlayouted_collaboration_xml(
         if _strip_ns(child.tag) == "BPMNDiagram":
             root.remove(child)
 
-    # Collect distinct pools and lanes
-    pools_set: Set[str] = set()
+    pools_set: Set[str] = set(element_id_to_pool.values())
+
+    # Build pool to ordered lanes mapping
     pool_to_lanes: Dict[str, List[str]] = defaultdict(list)
-    activity_to_lane: Dict[str, str] = {}
+    for a, (p, l) in activity_to_pool_lane.items():
+        if p and l and l not in pool_to_lanes[p]:
+            pool_to_lanes[p].append(l)
 
-    for act, (p, l) in activity_to_pool_lane.items():
-        pool_name = p if p is not None else "DefaultPool"
-        lane_name = l if l is not None else "DefaultLane"
-        pools_set.add(pool_name)
-        if lane_name not in pool_to_lanes[pool_name]:
-            pool_to_lanes[pool_name].append(lane_name)
-        activity_to_lane[act] = lane_name
-
-    # Ensure all pools in element_id_to_pool are registered
-    for p in element_id_to_pool.values():
-        pools_set.add(p)
-        if not pool_to_lanes[p]:
-            pool_to_lanes[p].append("DefaultLane")
-
-    # Map node id to pool and lane
-    node_to_pool: Dict[str, str] = {}
-    node_to_lane: Dict[str, str] = {}
     flow_nodes: Dict[str, ET.Element] = {}
     sequence_flows: List[ET.Element] = []
-
-    for child in source_process:
+    for child in list(source_process):
         tag_local = _strip_ns(child.tag)
         child_id = child.attrib.get("id", "")
-        child_name = child.attrib.get("name", "")
-
         if tag_local == "sequenceFlow":
             sequence_flows.append(child)
         else:
             flow_nodes[child_id] = child
-            pool = element_id_to_pool.get(child_id)
-            if not pool and child_name in activity_to_pool_lane:
-                pool = activity_to_pool_lane[child_name][0]
-            if not pool:
-                pool = list(pools_set)[0] if pools_set else "DefaultPool"
-            node_to_pool[child_id] = pool
 
-            lane = activity_to_lane.get(child_name)
-            if not lane and pool in pool_to_lanes and pool_to_lanes[pool]:
-                lane = pool_to_lanes[pool][0]
-            if not lane:
-                lane = "DefaultLane"
-            node_to_lane[child_id] = lane
-
-    # Classify sequence flows vs message flows
     intra_process_flows: Dict[str, List[ET.Element]] = defaultdict(list)
     message_flows: List[Tuple[str, str, str]] = []
 
     for sf in sequence_flows:
-        flow_id = sf.attrib.get("id", "")
+        fid = sf.attrib.get("id", "")
         src = sf.attrib.get("sourceRef", "")
         tgt = sf.attrib.get("targetRef", "")
-        src_pool = node_to_pool.get(src)
-        tgt_pool = node_to_pool.get(tgt)
+        src_p = element_id_to_pool.get(src)
+        tgt_p = element_id_to_pool.get(tgt)
 
-        if src_pool == tgt_pool and src_pool is not None:
-            intra_process_flows[src_pool].append(sf)
+        if src_p == tgt_p and src_p is not None:
+            intra_process_flows[src_p].append(sf)
         else:
-            message_flows.append((flow_id, src, tgt))
-            # If source is intermediate throw event, mark as message event
+            message_flows.append((fid, src, tgt))
             src_elem = flow_nodes.get(src)
             if src_elem is not None and "ThrowEvent" in _strip_ns(src_elem.tag):
-                has_msg_def = any(
-                    _strip_ns(c.tag) == "messageEventDefinition" for c in src_elem
-                )
-                if not has_msg_def:
+                if not any(_strip_ns(c.tag) == "messageEventDefinition" for c in src_elem):
                     ET.SubElement(
                         src_elem,
                         f"{{{bpmn_ns}}}messageEventDefinition",
                         attrib={"id": f"MessageEventDefinition_{abs(hash(src))}"},
                     )
-            # If target is intermediate catch event, mark as message event
             tgt_elem = flow_nodes.get(tgt)
             if tgt_elem is not None and "CatchEvent" in _strip_ns(tgt_elem.tag):
-                has_msg_def = any(
-                    _strip_ns(c.tag) == "messageEventDefinition" for c in tgt_elem
-                )
-                if not has_msg_def:
+                if not any(_strip_ns(c.tag) == "messageEventDefinition" for c in tgt_elem):
                     ET.SubElement(
                         tgt_elem,
                         f"{{{bpmn_ns}}}messageEventDefinition",
@@ -346,11 +360,11 @@ def _build_unlayouted_collaboration_xml(
             )
             lane_elems[l_name] = lane_elem
 
-        # Add flow nodes for this process
+        # Add flow nodes for this process and assign flowNodeRefs to their lane
         for nid, elem in flow_nodes.items():
-            if node_to_pool.get(nid) == pool_name:
+            if element_id_to_pool.get(nid) == pool_name:
                 proc.append(elem)
-                assigned_lane = node_to_lane.get(nid, lanes_for_pool[0])
+                assigned_lane = element_id_to_lane.get(nid, lanes_for_pool[0])
                 if assigned_lane not in lane_elems:
                     assigned_lane = lanes_for_pool[0]
                 ref_elem = ET.SubElement(
@@ -410,27 +424,32 @@ def apply(activity_to_pool_lane: Dict[str, Tuple[str, str]], powl) -> str:
     pools = _pools_to_tasks(activity_to_pool_lane)
     _, G, _ = pminer_bpmn_transformer.apply(powl)
 
-    coloring: Dict[str, str] = {}
+    coloring: Dict[Any, str] = {}
     if len(pools) > 1:
         coloring = _color_graph(G, pools)
         G, coloring = _add_intermediate_events_to_graph(G, coloring)
     else:
         pool_name = list(pools.keys())[0] if pools else "DefaultPool"
-        coloring = {str(node): pool_name for node in G.nodes()}
+        coloring = {node: pool_name for node in G.nodes()}
+
+    node_to_lane = _propagate_lanes(G, coloring, activity_to_pool_lane)
 
     bpmn, elements_mapping = pminer_bpmn_transformer.__transform_to_bpmn(G)
     raw_bpmn_xml = get_xml_string(bpmn).decode("utf-8")
 
-    # Map transformed BPMN element IDs to pool names
+    # Map transformed BPMN element IDs to pool names and lanes
     element_id_to_pool: Dict[str, str] = {}
+    element_id_to_lane: Dict[str, str] = {}
     for orig_node, pool_name in coloring.items():
-        elem_id = elements_mapping.get(orig_node, orig_node)
+        elem_id = elements_mapping.get(str(orig_node), str(orig_node))
         element_id_to_pool[elem_id] = pool_name
+        element_id_to_lane[elem_id] = node_to_lane.get(orig_node, "DefaultLane")
 
     # Build collaboration XML with pools and lanes
     unlayouted_xml = _build_unlayouted_collaboration_xml(
-        raw_bpmn_xml, activity_to_pool_lane, element_id_to_pool
+        raw_bpmn_xml, activity_to_pool_lane, element_id_to_pool, element_id_to_lane
     )
 
     # Run the new Graphviz + post-processing layouter pipeline
     return layout_bpmn_xml(unlayouted_xml)
+
