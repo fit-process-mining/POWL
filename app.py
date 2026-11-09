@@ -4,17 +4,14 @@ import tempfile
 from enum import Enum
 
 import powl
+from powl.visualization.bpmn.layout import layout_bpmn as _layout_bpmn
 
 import streamlit as st
 
-from pm4py.objects.bpmn.exporter.variants.etree import get_xml_string
-from pm4py.objects.bpmn.layout import layouter as bpmn_layouter
 from pm4py.objects.petri_net.exporter.variants.pnml import export_petri_as_string
 
-from pm4py.util import constants
 from pm4py.visualization.bpmn import visualizer as bpmn_visualizer
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
-from powl.conversion.variants.to_bpmn import apply as bpmn_converter
 
 
 class ViewType(Enum):
@@ -56,7 +53,7 @@ def run_app():
         threshold = st.number_input(
             label="Noise Filtering Threshold (0.0 = No Filtering)",
             min_value=0.0,
-            max_value=1.0,
+            max_value=0.99,
             value=0.0,
             step=0.01,
             help="Set the threshold for DFG frequency filtering",
@@ -93,16 +90,13 @@ def run_app():
 
         st.write("Export Model")
         powl_model = st.session_state["model_gen"]
-        bpmn, _, _ = bpmn_converter(powl_model)
-        layouted_bpmn = bpmn_layouter.apply(bpmn)
+        layouted_bpmn = powl.convert_to_bpmn(powl_model)
         try:
             pn, im, fm = powl.convert_to_petri_net(powl_model)
 
             download_1, download_2 = st.columns(2)
             with download_1:
-                bpmn_data = get_xml_string(
-                    layouted_bpmn, parameters={"encoding": constants.DEFAULT_ENCODING}
-                )
+                bpmn_data = _layout_bpmn(layouted_bpmn).encode("utf-8")
 
                 st.download_button(
                     label="Download BPMN",

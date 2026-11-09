@@ -1,4 +1,9 @@
+from __future__ import annotations
+
 import warnings
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pm4py
@@ -26,28 +31,39 @@ from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints
     POWLDiscoveryVariant,
 )
 from powl.objects.tagged_powl.base import TaggedPOWL
+from powl.io.powl_json import write_powl_json
 from powl.visualization.powl.visualizer import POWLVisualizationVariants
+from powl.visualization.bpmn.layout import save_bpmn as _save_bpmn
 from pm4py import PetriNet
 from powl.discovery.object_centric.algorithm import Variants as OC_Variants
 
 
-def import_ocel(path: str) -> OCEL:
+def import_ocel(path: str | Path) -> OCEL:
+    """Read OCEL 2.0, falling back to the legacy OCEL reader."""
+    path = str(path)
     try:
         return pm4py.read_ocel2(path)
-    except BaseException as first_error:
+    except Exception as first_error:
         try:
             return pm4py.read_ocel(path)
-        except BaseException as second_error:
-            raise Exception(
-                f"Could not import OCEL file via OCEL 2 or generic reader: {first_error}; fallback failed: {second_error}"
+        except Exception as second_error:
+            raise ValueError(
+                "Could not import the OCEL file with either reader: "
+                f"OCEL 2.0: {first_error}; legacy: {second_error}"
             ) from second_error
 
 
-def import_event_log(path: str, timestamp_key=None) -> pd.DataFrame:
-    import rustxes
+def import_event_log(path: str | Path, timestamp_key: str | None = None) -> pd.DataFrame:
+    """Read a CSV, XES, or compressed XES event log as a DataFrame.
 
-    if path.endswith(".xes") or path.endswith(".xes.gz"):
-        [xes, _] = rustxes.import_xes(path)
+    For CSV files, the supplied timestamp column is parsed as a datetime.
+    If omitted, ``time:timestamp`` is used when present.
+    """
+    path = str(path)
+    if path.endswith((".xes", ".xes.gz")):
+        import rustxes
+
+        xes, _ = rustxes.import_xes(path)
         df = xes.to_pandas()
     elif path.endswith(".csv"):
         cols_to_parse = []
@@ -59,7 +75,7 @@ def import_event_log(path: str, timestamp_key=None) -> pd.DataFrame:
         elif "time:timestamp" in df_sample.columns:
             timestamp_key = "time:timestamp"
             warnings.warn(
-                f"No column given as a timestamp key! Default value 'time:timestamp' is used."
+                "No column given as a timestamp key! Default value 'time:timestamp' is used."
             )
         else:
             warnings.warn(
@@ -94,9 +110,9 @@ def discover(
     Reference paper:
     H Kourani, G Park, WMP van der Aalst. "Unlocking Non-Block-Structured Decisions: Inductive Mining with Choice Graphs" arXiv preprint arXiv:2505.07052.
 
-    :param keep_only_completion_events:
-    :param lifecycle_key:
-    :param log: event log / Pandas dataframe
+    :param keep_only_completion_events: use completion events when available
+    :param lifecycle_key: name of the lifecycle column
+    :param log: Pandas DataFrame of events
     :param variant: variant of the algorithm
     :param filtering_weight_factor: accepts values 0 <= x < 1
     :param order_graph_filtering_threshold: accepts values 0.5 < x <= 1
@@ -105,17 +121,33 @@ def discover(
     :param timestamp_key: attribute to be used for the timestamp
     :param case_id_key: attribute to be used as case identifier
     :param simplify: whether to simplify or not the POWL model
-    :rtype: ``POWL``
+    :return: Discovered POWL model.
     """
+
+    for column in (case_id_key, activity_key, timestamp_key):
+        if column not in log.columns:
+            raise ValueError(f"Column {column!r} not found in the event log.")
+
+    if filtering_weight_factor is not None and not (0 <= filtering_weight_factor < 1):
+        raise ValueError("filtering_weight_factor must satisfy 0 <= x < 1.")
+    if order_graph_filtering_threshold is not None and not (
+        0.5 < order_graph_filtering_threshold <= 1
+    ):
+        raise ValueError("order_graph_filtering_threshold must satisfy 0.5 < x <= 1.")
+    if dfg_frequency_filtering_threshold is not None and not (
+        0 <= dfg_frequency_filtering_threshold < 1
+    ):
+        raise ValueError("dfg_frequency_filtering_threshold must satisfy 0 <= x < 1.")
 
     log = log.sort_values([case_id_key, timestamp_key])
     properties = get_properties(
-        log, activity_key=activity_key, timestamp_key=timestamp_key
+        log, activity_key=activity_key, timestamp_key=timestamp_key,
+        case_id_key=case_id_key,
     )
 
     if keep_only_completion_events and lifecycle_key in log.columns:
         filtered_log = log[
-            log["lifecycle:transition"].isin(["complete", "COMPLETE", "Complete"])
+            log[lifecycle_key].isin(["complete", "COMPLETE", "Complete"])
         ]
         if len(filtered_log) > 0:
             log = filtered_log
@@ -127,8 +159,8 @@ def discover(
 
     num_filters = 0
     if order_graph_filtering_threshold is not None:
-        if not variant is POWLDiscoveryVariant.DYNAMIC_CLUSTERING:
-            raise Exception(
+        if variant is not POWLDiscoveryVariant.DYNAMIC_CLUSTERING:
+            raise ValueError(
                 "The order graph filtering threshold can only be used for the variant DYNAMIC_CLUSTERING!"
             )
         properties[ORDER_FREQUENCY_RATIO] = order_graph_filtering_threshold
@@ -144,7 +176,7 @@ def discover(
         num_filters += 1
 
     if num_filters > 1:
-        raise Exception(
+        raise ValueError(
             "The algorithm can only be used with one filtering threshold at a time!"
         )
 
@@ -272,3 +304,44 @@ def convert_to_bpmn_with_resources(
     and return cleanly layouted BPMN 2.0 XML string.
     """
     return to_bpmn_with_resources(activity_to_pool_lane, powl)
+
+
+def export(
+    model: TaggedPOWL,
+    file_path: str | Path,
+    *,
+    metadata: Mapping[str, Any] | None = None,
+    activity_to_pool_lane: Mapping[str, tuple[str, str]] | None = None,
+) -> None:
+    """Export a POWL model to POWL JSON (``.powl``) or laid-out BPMN (``.bpmn``).
+
+    The file extension chooses the format. BPMN export automatically includes
+    diagram coordinates; callers never need to convert or lay out BPMN manually.
+    Optional ``activity_to_pool_lane`` assignments are supported for BPMN only,
+    and POWL JSON ``metadata`` is supported for .powl files only.
+
+    The destination's parent directory must already exist. Existing files are
+    overwritten.
+    """
+    if not isinstance(model, TaggedPOWL):
+        raise TypeError("model must be a POWL model (TaggedPOWL)")
+
+    path = Path(file_path)
+    extension = path.suffix.lower()
+
+    if extension == ".powl":
+        if activity_to_pool_lane is not None:
+            raise ValueError("activity_to_pool_lane is only supported for .bpmn export")
+        write_powl_json(model, path, metadata=metadata)
+    elif extension == ".bpmn":
+        if metadata is not None:
+            raise ValueError("metadata is only supported for .powl export")
+        if activity_to_pool_lane is None:
+            bpmn, _, _ = to_bpmn(model)
+            _save_bpmn(bpmn, path)
+        else:
+            # The collaboration converter already generates laid-out BPMN XML.
+            bpmn_xml = to_bpmn_with_resources(dict(activity_to_pool_lane), model)
+            _save_bpmn(bpmn_xml, path, layout=False)
+    else:
+        raise ValueError("Unsupported export format: use a .powl or .bpmn file path")

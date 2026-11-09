@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 
 import graphviz
 
-from input_parser import BPMNModel, Process, FlowNode, Bounds
+from .input_parser import BPMNModel, Process, FlowNode, Bounds
 
 
 def layout_process(process: Process) -> Dict[str, Bounds]:

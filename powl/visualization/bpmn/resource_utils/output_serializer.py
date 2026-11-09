@@ -7,8 +7,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import Optional
 
-from constants import NAMESPACES
-from input_parser import (
+from .constants import NAMESPACES
+from .input_parser import (
     BPMNModel,
     Process,
     Lane,

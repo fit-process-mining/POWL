@@ -525,9 +525,9 @@ def __transform_to_bpmn(G):
         node_dict[v]["incoming"].append(u)
     bpmn = bpmn_obj.BPMN()
 
-    for node, attrs in G.nodes(data=True):
+    for node_index, (node, attrs) in enumerate(G.nodes(data=True), start=1):
         object = None
-        ided_id = str(id(str(node)))
+        ided_id = str(node_index)
         if "Start" in str(node):
             ided_id = f"StartEvent_{ided_id}"
             object = bpmn.StartEvent(id=ided_id)

@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Tuple
 
-from constants import (
+from .constants import (
     NAMESPACES,
     ELEMENT_BOUNDS,
     DEFAULT_NODE_BOUNDS,

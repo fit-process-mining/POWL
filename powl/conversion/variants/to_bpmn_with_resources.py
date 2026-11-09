@@ -98,18 +98,12 @@ def _color_graph(graph: nx.DiGraph, pools: Dict[str, Set[str]]) -> Dict[Any, str
     )
     coloring: Dict[Any, str] = {}
 
-    for pool, tasks in pools.items():
-        for task in tasks:
-            node_for_task = next(
-                (
-                    n
-                    for n, attr in graph.nodes(data=True)
-                    if attr.get("content") == task
-                ),
-                None,
-            )
-            if node_for_task is not None:
-                coloring[node_for_task] = pool
+    for node, attributes in graph.nodes(data=True):
+        label = attributes.get("content")
+        for pool, tasks in pools.items():
+            if label in tasks:
+                coloring[node] = pool
+                break
 
     for node in graph.nodes:
         counterparts = graph.nodes[node].get("paired_with") or []
@@ -180,10 +174,10 @@ def _add_intermediate_events_to_graph(
     edges_to_add = []
     edges_to_remove = []
 
-    for u, v in edges_in_graph:
+    for edge_idx, (u, v) in enumerate(edges_in_graph, start=1):
         if coloring.get(u) != coloring.get(v):
-            throw_node_id = f"IntermediateThrowEvent_{abs(hash(str(u)))}_{abs(hash(str(v)))}"
-            catch_node_id = f"IntermediateCatchEvent_{abs(hash(str(u)))}_{abs(hash(str(v)))}"
+            throw_node_id = f"IntermediateThrowEvent_{edge_idx}"
+            catch_node_id = f"IntermediateCatchEvent_{edge_idx}"
 
             G_new.add_node(throw_node_id, type="throw")
             coloring_new[throw_node_id] = coloring[u]
@@ -314,7 +308,7 @@ def _build_unlayouted_collaboration_xml(
                     ET.SubElement(
                         src_elem,
                         f"{{{bpmn_ns}}}messageEventDefinition",
-                        attrib={"id": f"MessageEventDefinition_{abs(hash(src))}"},
+                        attrib={"id": f"MessageEventDefinition_{src}"},
                     )
             tgt_elem = flow_nodes.get(tgt)
             if tgt_elem is not None and "CatchEvent" in _strip_ns(tgt_elem.tag):
@@ -322,15 +316,15 @@ def _build_unlayouted_collaboration_xml(
                     ET.SubElement(
                         tgt_elem,
                         f"{{{bpmn_ns}}}messageEventDefinition",
-                        attrib={"id": f"MessageEventDefinition_{abs(hash(tgt))}"},
+                        attrib={"id": f"MessageEventDefinition_{tgt}"},
                     )
 
     # Create collaboration element
     collab = ET.Element(f"{{{bpmn_ns}}}collaboration", attrib={"id": "Collaboration_1"})
 
     new_processes: List[ET.Element] = []
-    for pool_name in sorted(pools_set):
-        proc_id = f"Process_{abs(hash(pool_name))}"
+    for pool_idx, pool_name in enumerate(sorted(pools_set), start=1):
+        proc_id = f"Process_{pool_idx}"
         ET.SubElement(
             collab,
             f"{{{bpmn_ns}}}participant",
@@ -351,8 +345,8 @@ def _build_unlayouted_collaboration_xml(
             proc, f"{{{bpmn_ns}}}laneSet", attrib={"id": f"LaneSet_{proc_id}"}
         )
         lane_elems = {}
-        for l_name in lanes_for_pool:
-            lane_id = f"Lane_{abs(hash(l_name))}_{abs(hash(pool_name))}"
+        for lane_idx, l_name in enumerate(lanes_for_pool, start=1):
+            lane_id = f"Lane_{pool_idx}_{lane_idx}"
             lane_elem = ET.SubElement(
                 lane_set,
                 f"{{{bpmn_ns}}}lane",
@@ -404,22 +398,10 @@ def apply(activity_to_pool_lane: Dict[str, Tuple[str, str]], powl) -> str:
     :param powl: TaggedPOWL model
     :return: Layouted BPMN 2.0 XML string
     """
-    original_pools = set(
-        p for _, (p, _) in activity_to_pool_lane.items() if p is not None
-    )
-    activity_to_pool_lane_copy = activity_to_pool_lane.copy()
-    if len(original_pools) == 0:
-        activity_to_pool_lane = {
-            activity: ("ProcessPool", lane if lane is not None else "DefaultLane")
-            for activity, (_, lane) in activity_to_pool_lane.items()
-        }
-    for activity, (pool, lane) in activity_to_pool_lane_copy.items():
-        if pool is None and lane is None:
-            activity_to_pool_lane[activity] = ("ProcessPool", "DefaultLane")
-        elif pool is None:
-            activity_to_pool_lane[activity] = ("ProcessPool", lane)
-        elif lane is None:
-            activity_to_pool_lane[activity] = (pool, "DefaultLane")
+    activity_to_pool_lane = {
+        activity: (pool or "ProcessPool", lane or "DefaultLane")
+        for activity, (pool, lane) in activity_to_pool_lane.items()
+    }
 
     pools = _pools_to_tasks(activity_to_pool_lane)
     _, G, _ = pminer_bpmn_transformer.apply(powl)

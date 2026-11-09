@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Optional, Tuple, Any
 
-from constants import (
+from .constants import (
     POOL_HEADER_WIDTH,
     POOL_MARGIN_X,
     POOL_MARGIN_Y,
@@ -22,7 +22,7 @@ from constants import (
     LABEL_CORNER_MARGIN_X,
     LABEL_CORNER_MARGIN_Y,
 )
-from input_parser import (
+from .input_parser import (
     BPMNModel,
     Process,
     Lane,
