@@ -11,6 +11,9 @@ from pm4py.utils import get_properties
 from powl.conversion.converter import apply as powl_converter
 from powl.conversion.to_powl.from_pn.converter import convert_workflow_net_to_powl
 from powl.conversion.variants.to_bpmn import apply as to_bpmn
+from powl.conversion.variants.to_bpmn_with_resources import (
+    apply as to_bpmn_with_resources,
+)
 from powl.discovery.dfg_based.algorithm import apply as dfg_discovery
 from powl.discovery.object_centric.algorithm import apply as oc_discovery
 from powl.discovery.total_order_based.inductive.utils.filtering import (
@@ -259,3 +262,13 @@ def convert_to_bpmn(powl: TaggedPOWL):
     bpmn, _, _ = to_bpmn(powl)
     bpmn = bpmn_layouter.apply(bpmn)
     return bpmn
+
+
+def convert_to_bpmn_with_resources(
+    activity_to_pool_lane: dict[str, tuple[str, str]], powl: TaggedPOWL
+) -> str:
+    """
+    Convert a POWL model to BPMN 2.0 XML with resources (pools & lanes),
+    and return cleanly layouted BPMN 2.0 XML string.
+    """
+    return to_bpmn_with_resources(activity_to_pool_lane, powl)

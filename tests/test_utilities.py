@@ -8,7 +8,8 @@ import powl
 from powl.objects.utils.graph_sequentialization import split_graph_into_stages
 from powl.objects.utils.relation import get_transitive_closure_from_counter
 from powl.general_utils.time_utils import should_parse_column_as_date
-from powl.visualization.bpmn.layout import layout_bpmn
+from powl.visualization.bpmn.layout import layout_bpmn, layout_bpmn_xml
+from powl.visualization.bpmn import visualizer as bpmn_visualizer
 
 
 def test_should_parse_column_as_date_detects_valid_values():
@@ -83,3 +84,39 @@ def test_layout_bpmn_generates_bpmn_xml(running_example_model):
 
     assert xml.startswith('<?xml version="1.0"')
     assert "<bpmn:definitions" in xml
+
+
+def test_layout_bpmn_xml_handles_raw_bpmn(examples_dir):
+    diagram_1_path = examples_dir / "diagram_1.bpmn"
+    if diagram_1_path.exists():
+        raw_xml = diagram_1_path.read_text(encoding="utf-8")
+        result = layout_bpmn_xml(raw_xml)
+        assert "<bpmndi:BPMNDiagram" in result
+        assert "<bpmndi:BPMNShape" in result
+        assert "<bpmndi:BPMNEdge" in result
+
+
+def test_convert_to_bpmn_with_resources_generates_collaboration(running_example_model):
+    activity_to_pool_lane = {
+        "register request": ("P1", "Lane1"),
+        "reinitiate request": ("P2", "Lane1"),
+        "pay compensation": ("P1", "Lane1"),
+        "reject request": ("P1", "Lane1"),
+        "examine casually": ("P2", "Lane2"),
+        "examine thoroughly": ("P1", "Lane2"),
+        "check ticket": ("P2", "Lane3"),
+        "decide": ("P1", "Lane3"),
+    }
+    xml = powl.convert_to_bpmn_with_resources(activity_to_pool_lane, running_example_model)
+    assert "<bpmn:collaboration" in xml
+    assert 'name="P1"' in xml
+    assert 'name="P2"' in xml
+    assert 'name="Lane1"' in xml
+    assert "<bpmn:messageFlow" in xml
+
+
+def test_bpmn_visualizer_apply(running_example_model):
+    bpmn = powl.convert_to_bpmn(running_example_model)
+    gviz = bpmn_visualizer.apply(bpmn)
+    assert gviz is not None
+
