@@ -1,7 +1,7 @@
 import warnings
 from bisect import bisect_left
 from collections import defaultdict
-from typing import Any, List, Set
+from typing import Any, List, Optional, Set
 
 import pandas as pd
 
@@ -18,7 +18,7 @@ def generate_interval_df_fifo(
     case_id_col: str,
     activity_col: str,
     ordering_col: str,
-    lifecycle_col: str or None,
+    lifecycle_col: Optional[str],
     start_transitions: Set[str],
     complete_transitions: Set[str],
 ) -> pd.DataFrame:
@@ -105,7 +105,7 @@ def apply(
     case_id_col: str,
     activity_col: str,
     ordering_col: str,
-    lifecycle_col: str or None,
+    lifecycle_col: Optional[str],
     start_transitions: Set[str],
     complete_transitions: Set[str],
 ) -> List[Any]:
@@ -119,7 +119,7 @@ def apply(
 
     if lifecycle_col:
         if lifecycle_col in df.columns:
-            complete_log = df[df["lifecycle:transition"].isin(complete_transitions)]
+            complete_log = df[df[lifecycle_col].isin(complete_transitions)]
             if len(complete_log) == 0:
                 lifecycle_col = None
                 warnings.warn(
@@ -127,13 +127,16 @@ def apply(
                     category=UserWarning,
                 )
         else:
+            missing_column = lifecycle_col
             lifecycle_col = None
             warnings.warn(
-                f'The event log does not contain any attribute with the lifecycle key "{lifecycle_col}"! All events will be considered during discovery!',
+                f'The event log does not contain a lifecycle column {missing_column!r}; '
+                'all events will be considered during discovery.',
                 category=UserWarning,
             )
 
     if should_parse_column_as_date(df, ordering_col):
+        df = df.copy()
         df[ordering_col] = pd.to_datetime(df[ordering_col])
 
     interval_df = generate_interval_df_fifo(
