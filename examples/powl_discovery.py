@@ -2,9 +2,6 @@ import os
 
 import pm4py
 import powl
-from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
-    POWLDiscoveryVariant,
-)
 
 
 def execute_script():
@@ -18,7 +15,7 @@ def execute_script():
     model = powl.discover(
         log,
         dfg_frequency_filtering_threshold=0.0,
-        variant=POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC,
+        variant=powl.POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC,
     )
 
     # View the discovered model
@@ -33,7 +30,7 @@ def execute_script():
     pm4py.view_petri_net(petri_net, initial_marking, final_marking, format="SVG")
 
     # Convert into a PM4Py BPMN model
-    bpmn = pm4py.convert_to_bpmn(petri_net, initial_marking, final_marking)
+    bpmn = powl.convert_to_bpmn(model)
     pm4py.view_bpmn(bpmn, format="SVG")
 
 

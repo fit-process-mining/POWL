@@ -32,11 +32,6 @@ def hospital_example_path(examples_dir: Path) -> Path:
 
 
 @pytest.fixture(scope="session")
-def workflow_net_path(examples_dir: Path) -> Path:
-    return examples_dir / "hospital_wf_net.pnml"
-
-
-@pytest.fixture(scope="session")
 def running_example_log(running_example_path: Path):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

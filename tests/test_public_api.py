@@ -6,6 +6,9 @@ import pytest
 from pandas.api.types import is_datetime64_any_dtype
 from pm4py.algo.discovery.inductive.variants.imf import IMFParameters
 from pm4py.objects.dfg.obj import DFG
+from pm4py.objects.petri_net.obj import PetriNet
+from pm4py.objects.petri_net.utils import petri_utils
+from pm4py.util import constants as pm4py_constants
 
 import powl
 import powl.main
@@ -16,9 +19,7 @@ from powl.discovery.total_order_based.inductive.utils.filtering import (
 from powl.discovery.total_order_based.inductive.variants.dynamic_clustering_frequency.dynamic_clustering_frequency_partial_order_cut import (
     ORDER_FREQUENCY_RATIO,
 )
-from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
-    POWLDiscoveryVariant,
-)
+from powl import POWLDiscoveryVariant
 from powl.objects.tagged_powl.partial_order import PartialOrder
 
 
@@ -64,11 +65,12 @@ def test_import_ocel_falls_back_to_legacy_reader(monkeypatch):
 def test_discover_filters_completion_events_before_delegating(monkeypatch):
     captured = {}
 
-    def fake_apply(log, variant=None, parameters=None, simplify=None):
+    def fake_apply(log, variant=None, parameters=None, simplify=None, time_ordering=None):
         captured["log"] = log.copy()
         captured["variant"] = variant
         captured["parameters"] = parameters
         captured["simplify"] = simplify
+        captured["time_ordering"] = time_ordering
         return "sentinel-model"
 
     monkeypatch.setattr(total_order_algorithm, "apply", fake_apply)
@@ -94,13 +96,14 @@ def test_discover_filters_completion_events_before_delegating(monkeypatch):
     assert result == "sentinel-model"
     assert captured["variant"] == POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC
     assert captured["simplify"] is False
+    assert captured["time_ordering"] is False
     assert list(captured["log"]["lifecycle:transition"]) == ["complete", "complete"]
 
 
 def test_discover_keeps_original_log_if_completion_filter_would_empty_it(monkeypatch):
     captured = {}
 
-    def fake_apply(log, variant=None, parameters=None, simplify=None):
+    def fake_apply(log, variant=None, parameters=None, simplify=None, time_ordering=None):
         captured["rows"] = len(log)
         return "sentinel-model"
 
@@ -124,7 +127,7 @@ def test_discover_keeps_original_log_if_completion_filter_would_empty_it(monkeyp
 def test_discover_passes_filtering_threshold_parameters(monkeypatch):
     captured = {}
 
-    def fake_apply(log, variant=None, parameters=None, simplify=None):
+    def fake_apply(log, variant=None, parameters=None, simplify=None, time_ordering=None):
         captured["parameters"] = parameters
         return "sentinel-model"
 
@@ -147,7 +150,7 @@ def test_discover_passes_filtering_threshold_parameters(monkeypatch):
 def test_discover_passes_dfg_noise_threshold(monkeypatch):
     captured = {}
 
-    def fake_apply(log, variant=None, parameters=None, simplify=None):
+    def fake_apply(log, variant=None, parameters=None, simplify=None, time_ordering=None):
         captured["parameters"] = parameters
         return "sentinel-model"
 
@@ -175,7 +178,7 @@ def test_discover_passes_dfg_noise_threshold(monkeypatch):
 def test_discover_passes_order_graph_threshold_for_dynamic_clustering(monkeypatch):
     captured = {}
 
-    def fake_apply(log, variant=None, parameters=None, simplify=None):
+    def fake_apply(log, variant=None, parameters=None, simplify=None, time_ordering=None):
         captured["variant"] = variant
         captured["parameters"] = parameters
         return "sentinel-model"
@@ -272,8 +275,9 @@ def test_discover_partially_ordered_log_and_convert(hospital_example_model):
 def test_discover_petri_net_from_ocel_delegates(monkeypatch):
     sentinel = object()
 
-    def fake_oc_discovery(ocel, parameters=None):
+    def fake_oc_discovery(ocel, variant=None, parameters=None):
         assert ocel == "ocel"
+        assert variant == powl.main.OC_Variants.OC_POWL
         assert parameters == {"alpha": 1}
         return sentinel
 
@@ -282,8 +286,17 @@ def test_discover_petri_net_from_ocel_delegates(monkeypatch):
     assert powl.discover_petri_net_from_ocel("ocel", parameters={"alpha": 1}) is sentinel
 
 
-def test_convert_from_workflow_net_example(workflow_net_path):
-    net, _, _ = pm4py.read_pnml(str(workflow_net_path))
+def test_convert_from_workflow_net_example():
+    # A minimal workflow net; do not rely on an untracked examples/*.pnml file.
+    net = PetriNet("serial")
+    p0, p1, p2 = (PetriNet.Place(name) for name in ("p0", "p1", "p2"))
+    t1, t2 = (PetriNet.Transition(name, name) for name in ("A", "B"))
+    net.places.update((p0, p1, p2))
+    net.transitions.update((t1, t2))
+    petri_utils.add_arc_from_to(p0, t1, net)
+    petri_utils.add_arc_from_to(t1, p1, net)
+    petri_utils.add_arc_from_to(p1, t2, net)
+    petri_utils.add_arc_from_to(t2, p2, net)
 
     model = powl.convert_from_workflow_net(net)
 
@@ -291,3 +304,67 @@ def test_convert_from_workflow_net_example(workflow_net_path):
     assert len(model.get_nodes()) == 2
     roundtrip_net, _, _ = powl.convert_to_petri_net(model)
     assert len(roundtrip_net.transitions) > 0
+
+
+def test_top_level_model_builders_are_available():
+    model = powl.sequence([powl.Activity("A"), powl.Activity("B")])
+    assert isinstance(model, powl.PartialOrder)
+    assert isinstance(powl.POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC, POWLDiscoveryVariant)
+
+
+def test_import_event_log_accepts_pathlib_path(running_example_path):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        log = powl.import_event_log(running_example_path)
+    assert not log.empty
+
+
+def test_discover_uses_custom_case_and_lifecycle_columns(monkeypatch):
+    captured = {}
+
+    def fake_apply(log, variant=None, parameters=None, simplify=None, time_ordering=None):
+        captured["log"] = log
+        captured["parameters"] = parameters
+        return "model"
+
+    monkeypatch.setattr(total_order_algorithm, "apply", fake_apply)
+    log = pd.DataFrame(
+        {
+            "case_id": ["1", "1"],
+            "activity": ["A", "A"],
+            "when": pd.to_datetime(["2025-01-01 01:00", "2025-01-01 02:00"]),
+            "state": ["start", "complete"],
+        }
+    )
+    result = powl.discover(
+        log,
+        case_id_key="case_id",
+        activity_key="activity",
+        timestamp_key="when",
+        lifecycle_key="state",
+    )
+    assert result == "model"
+    assert captured["log"]["state"].tolist() == ["complete"]
+    assert captured["parameters"][pm4py_constants.PARAMETER_CONSTANT_CASEID_KEY] == "case_id"
+
+
+@pytest.mark.parametrize(
+    ("argument", "value"),
+    [
+        ("filtering_weight_factor", -0.1),
+        ("filtering_weight_factor", 1.0),
+        ("order_graph_filtering_threshold", 0.5),
+        ("order_graph_filtering_threshold", 1.1),
+        ("dfg_frequency_filtering_threshold", -0.1),
+        ("dfg_frequency_filtering_threshold", 1.0),
+    ],
+)
+def test_discover_rejects_out_of_range_filtering_options(running_example_log, argument, value):
+    with pytest.raises(ValueError, match=argument):
+        powl.discover(running_example_log, **{argument: value})
+
+
+def test_convert_to_bpmn_assigns_unique_node_ids(running_example_model):
+    bpmn = powl.convert_to_bpmn(running_example_model)
+    ids = [node.id for node in bpmn.get_nodes()]
+    assert len(ids) == len(set(ids))
