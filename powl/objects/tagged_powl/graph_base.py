@@ -130,8 +130,21 @@ class GraphBacked(TaggedPOWL, ABC):
             return False
         if not self.same_signature(other):
             return False
-        # Conservative: identity-based node set + edge set
-        return self.user_nodes() == other.user_nodes() and self.user_edges() == other.user_edges()
+        # Nodes use identity equality, so compare labeled graph structure rather
+        # than node objects. This also handles JSON round-trips and nested POWL.
+        left = self._g.copy()
+        right = other._g.copy()
+        nx.set_node_attributes(left, {node: node for node in left}, "_powl_node")
+        nx.set_node_attributes(right, {node: node for node in right}, "_powl_node")
+
+        def match_node(left_attrs: dict, right_attrs: dict) -> bool:
+            left_node = left_attrs["_powl_node"]
+            right_node = right_attrs["_powl_node"]
+            if isinstance(left_node, TaggedPOWL):
+                return isinstance(right_node, TaggedPOWL) and left_node.same_structure(right_node)
+            return type(left_node) is type(right_node)
+
+        return nx.is_isomorphic(left, right, node_match=match_node)
 
     # --- DAG utilities (usable by subclasses that are DAGs) ---
     def is_acyclic(self) -> bool:
