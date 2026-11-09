@@ -1,7 +1,5 @@
-pm4py
+pm4py>=2.7
 graphviz
 rustxes
-streamlit
 networkx
-shapely
 pandas>=2.2.0
