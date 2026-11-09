@@ -35,7 +35,6 @@ include = ["powl*"]
 
 [tool.setuptools.package-data]
 "powl.visualization.powl.variants.icons" = ["*.svg"]
-"powl" = ["js/*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

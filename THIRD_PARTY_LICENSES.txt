@@ -1,9 +1,0 @@
-This project bundles the following third-party software:
-
----
-
-bpmn-auto-layout
-https://www.npmjs.com/package/bpmn-auto-layout
-
-Copyright (c) The bpmn-auto-layout authors
-Licensed under the MIT License

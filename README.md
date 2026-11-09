@@ -49,8 +49,3 @@ You can also install the POWL Miner as a Python library to integrate its functio
 
 **👉 Usage Example:**
      Check the `examples/` directory of this repository.
-
-
-### Third-Party Licenses
-This project bundles [bpmn-auto-layout](https://www.npmjs.com/package/bpmn-auto-layout),
-which is licensed under the MIT License. See `THIRD_PARTY_LICENSES.txt` for details.
