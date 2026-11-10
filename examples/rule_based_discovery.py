@@ -1,19 +1,10 @@
-"""Discover POWL from observed behavior and user-supplied declarative rules.
-
-From a repository checkout with ``pip install -e .``:
-
-    python examples/rule_based_discovery.py
-    python examples/rule_based_discovery.py --output rule-aware.powl
-
-The default run prints validation and model information. It does not open a
-viewer or write files. ``--output`` explicitly exports POWL JSON or BPMN.
-"""
-
 from __future__ import annotations
 
-import argparse
 from collections import Counter
 from pathlib import Path
+
+import pandas as pd
+import pm4py
 
 import powl
 from powl.discovery.rule_based import (
@@ -25,8 +16,6 @@ from powl.discovery.rule_based import (
 
 
 def execute_script(output: Path | None = None):
-    # Frequencies represent 12 cases without expanding them into 12 traces.
-    # Two observed cases contain both tests, contrary to the supplied rule.
     log = Counter(
         {
             ("Register", "CT", "Diagnose", "Treat", "Discharge"): 6,
@@ -34,6 +23,23 @@ def execute_script(output: Path | None = None):
             ("Register", "CT", "MRI", "Diagnose", "Treat", "Discharge"): 2,
         }
     )
+    rows = []
+    case_id = 0
+
+    for trace, frequency in log.items():
+        for _ in range(frequency):
+            case_id += 1
+
+            for event_index, activity in enumerate(trace):
+                rows.append({
+                    "case:concept:name": str(case_id),
+                    "concept:name": activity,
+                    "time:timestamp": pd.Timestamp("2026-01-01")
+                                      + pd.Timedelta(minutes=event_index),
+                })
+
+    df = pd.DataFrame(rows)
+
     rules = {
         NotCoExistenceRule("CT", "MRI"),
         ResponseRule("MRI", "Diagnose"),
@@ -41,8 +47,6 @@ def execute_script(output: Path | None = None):
         ChainResponseRule("Treat", "Discharge"),
     }
 
-    # This step is optional and evaluates the original observations. It neither
-    # mines constraints nor changes or filters rules based on their scores.
     print("Supplied rules on the original log:")
     for result in powl.validate_rules(log, rules):
         print(
@@ -57,40 +61,30 @@ def execute_script(output: Path | None = None):
         "counts activated traces. Always read confidence with its activation count."
     )
 
-    # Rules can reject an ordinary cut. Event-level repair follows the reference
-    # rule-specific deletion/truncation policies, then discovery retries. The
-    # supplied Counter and immutable rule objects remain unchanged.
-    model = powl.discover_with_rules(
-        log,
+    # model without rules
+    model = powl.discover(
+        df
+    )
+
+    powl.view(model)
+
+    net, initial_marking, final_marking = powl.convert_to_petri_net(model)
+    pm4py.view_petri_net(net, initial_marking, final_marking, format="svg")
+
+    # model with rules
+    model_2 = powl.discover_with_rules(
+        df,
         rules,
         repair_mode="event_level",
         noise_threshold=0.0,
         verify_rules=True,
     )
-    print(f"\nDiscovered {type(model).__name__}; original rules verified.")
-    print(model)
 
-    # Conversion needs no GUI. The result is usable by ordinary PM4Py tooling.
-    net, initial_marking, final_marking = powl.convert_to_petri_net(model)
-    print(f"Petri net: {len(net.places)} places, {len(net.transitions)} transitions.")
+    powl.view(model_2)
 
-    if output is not None:
-        if output.suffix.lower() not in {".powl", ".bpmn"}:
-            raise ValueError("Choose an output filename ending in .powl or .bpmn.")
-        powl.export(model, str(output))
-        print(f"Exported {output}.")
-
-    return model
+    net_2, initial_marking_2, final_marking_2 = powl.convert_to_petri_net(model_2)
+    pm4py.view_petri_net(net_2, initial_marking_2, final_marking_2, format="svg")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        help="Optional .powl or .bpmn export path; no files are written by default.",
-    )
-    arguments = parser.parse_args()
-    execute_script(arguments.output)
+    execute_script()
