@@ -10,3 +10,4 @@ class POWLDiscoveryVariant(Enum):
     DECISION_GRAPH_CLUSTERING = auto()
     DECISION_GRAPH_CYCLIC = auto()
     DECISION_GRAPH_CYCLIC_STRICT = auto()
+    RULE_BASED = auto()

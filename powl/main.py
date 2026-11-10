@@ -21,6 +21,8 @@ from powl.conversion.variants.to_bpmn_with_resources import (
 )
 from powl.discovery.dfg_based.algorithm import apply as dfg_discovery
 from powl.discovery.object_centric.algorithm import apply as oc_discovery
+from powl.discovery.rule_based.algorithm import discover_with_rules
+from powl.discovery.rule_based.validation import validate_rules
 from powl.discovery.total_order_based.inductive.utils.filtering import (
     FILTERING_THRESHOLD,
 )
@@ -103,6 +105,8 @@ def discover(
     lifecycle_key: str = "lifecycle:transition",
     keep_only_completion_events: bool = True,
     simplify=True,
+    rules=None,
+    rule_parameters: Mapping[str, Any] | None = None,
 ) -> TaggedPOWL:
     """
     Discovers a POWL model from an event log.
@@ -121,8 +125,29 @@ def discover(
     :param timestamp_key: attribute to be used for the timestamp
     :param case_id_key: attribute to be used as case identifier
     :param simplify: whether to simplify or not the POWL model
+    :param rules: declarative rules for the RULE_BASED variant
+    :param rule_parameters: RULE_BASED options: repair_mode, preprocess_rules,
+        verify_rules, max_states, max_depth; see discover_with_rules
     :return: Discovered POWL model.
     """
+
+    if variant is POWLDiscoveryVariant.RULE_BASED:
+        if filtering_weight_factor is not None or order_graph_filtering_threshold is not None:
+            raise ValueError("RULE_BASED supports only DFG frequency filtering.")
+        options = dict(rule_parameters or {})
+        allowed = {"repair_mode", "preprocess_rules", "verify_rules", "max_states", "max_depth"}
+        unknown = set(options) - allowed
+        if unknown:
+            raise ValueError(f"Unknown rule_parameters: {sorted(unknown)!r}.")
+        return discover_with_rules(
+            log, rules,
+            noise_threshold=dfg_frequency_filtering_threshold if dfg_frequency_filtering_threshold is not None else 0.0,
+            activity_key=activity_key, timestamp_key=timestamp_key, case_id_key=case_id_key,
+            lifecycle_key=lifecycle_key, keep_only_completion_events=keep_only_completion_events,
+            simplify=simplify, **options,
+        )
+    if rules is not None or rule_parameters is not None:
+        raise ValueError("rules and rule_parameters require variant=POWLDiscoveryVariant.RULE_BASED.")
 
     for column in (case_id_key, activity_key, timestamp_key):
         if column not in log.columns:

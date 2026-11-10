@@ -4,6 +4,7 @@ from powl.main import (
     convert_to_bpmn_with_resources,
     convert_to_petri_net,
     discover,
+    discover_with_rules,
     discover_from_dfg,
     discover_from_partially_ordered_log,
     discover_petri_net_from_ocel,
@@ -15,6 +16,7 @@ from powl.main import (
     view,
     view_net,
     view_ocpn,
+    validate_rules,
 )
 from powl.io.powl_json import read_powl_json, write_powl_json
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
@@ -49,6 +51,8 @@ __all__ = [
     # Process discovery
     "POWLDiscoveryVariant",
     "discover",
+    "discover_with_rules",
+    "validate_rules",
     "discover_from_dfg",
     "discover_from_partially_ordered_log",
     "discover_petri_net_from_ocel",

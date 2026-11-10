@@ -3,3 +3,4 @@ graphviz
 rustxes
 networkx
 pandas>=2.2.0
+automata-lib>=9.2.0

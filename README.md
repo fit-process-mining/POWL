@@ -29,6 +29,20 @@ powl.export(model, "model.bpmn")       # BPMN 2.0
 
 By default, discovery expects the `case:concept:name`, `concept:name`, and `time:timestamp` columns. Pass the corresponding options to `powl.discover()` for custom columns and filtering thresholds.
 
+## Rule-aware discovery
+
+Supply declarative constraints to the rule-aware Inductive Miner. Its cuts,
+recursive rule projections, repairs, and fall-throughs produce native POWL models:
+
+```python
+from powl.discovery.rule_based import ChainResponseRule, NotCoExistenceRule
+
+rules = {NotCoExistenceRule("CT", "MRI"), ChainResponseRule("Treat", "Discharge")}
+metrics = powl.validate_rules(log, rules)  # Optional; does not change the rules
+model = powl.discover_with_rules(log, rules, repair_mode="event_level")
+powl.export(model, "rule-aware.powl")
+```
+
 ## Construct and exchange models
 
 POWL models can also be constructed directly, without an event log:

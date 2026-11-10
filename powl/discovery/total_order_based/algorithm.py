@@ -42,7 +42,11 @@ DEFAULT_POWL_MINER = POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC
 
 
 def get_variant(variant: POWLDiscoveryVariant) -> Type[IMBasePOWL]:
-    if variant == POWLDiscoveryVariant.TREE:
+    if variant == POWLDiscoveryVariant.RULE_BASED:
+        from powl.discovery.rule_based.miner import RuleAwarePOWLInductiveMiner
+
+        return RuleAwarePOWLInductiveMiner
+    elif variant == POWLDiscoveryVariant.TREE:
         return IMBasePOWL
     elif variant == POWLDiscoveryVariant.BRUTE_FORCE:
         return POWLInductiveMinerBruteForce
@@ -62,17 +66,18 @@ def get_variant(variant: POWLDiscoveryVariant) -> Type[IMBasePOWL]:
         raise Exception("Invalid Variant!")
 
 
-
 def apply(
-    obj: Union[EventLog, pd.DataFrame],
-    parameters: Optional[Dict[Any, Any]] = None,
-    variant=DEFAULT_POWL_MINER,
-    simplify=True,
-    time_ordering: bool = True,
-    time_window: Optional[Union[timedelta, pd.Timedelta]] = None,
+        obj: Union[EventLog, pd.DataFrame],
+        parameters: Optional[Dict[Any, Any]] = None,
+        variant=DEFAULT_POWL_MINER,
+        simplify=True,
+        time_ordering: bool = True,
+        time_window: Optional[Union[timedelta, pd.Timedelta]] = None,
 ) -> TaggedPOWL:
     if parameters is None:
         parameters = {}
+    if variant == POWLDiscoveryVariant.RULE_BASED and time_ordering:
+        raise ValueError("RULE_BASED requires total-order traces; pass time_ordering=False.")
     ack = exec_utils.get_param_value(
         Parameters.ACTIVITY_KEY, parameters, xes_util.DEFAULT_NAME_KEY
     )
@@ -105,10 +110,30 @@ def apply(
         data_structure = IMDataStructureUVCL(uvcl)
 
     algorithm = get_variant(variant)
-    im = algorithm(parameters)
-    res = im.apply(data_structure, parameters)
-    
+    miner_parameters = parameters
+    if variant == POWLDiscoveryVariant.RULE_BASED:
+        from powl.discovery.rule_based.rules import normalize_rules
+
+        # Check the final normalized result below, without mutating the caller's
+        # parameters or performing the expensive proof twice.
+        miner_parameters = dict(parameters)
+        miner_parameters["rules"] = normalize_rules(parameters.get("rules", ()))
+        miner_parameters["verify_rules"] = False
+    im = algorithm(miner_parameters)
+    res = im.apply(data_structure, miner_parameters)
+
     if simplify:
         res = res.normalize()
+
+    if variant == POWLDiscoveryVariant.RULE_BASED:
+        from powl.discovery.rule_based.conformance import assert_model_satisfies_rules
+
+        if not isinstance(parameters.get("verify_rules", True), bool):
+            raise TypeError("verify_rules must be a bool.")
+        if parameters.get("verify_rules", True):
+            assert_model_satisfies_rules(
+                res, miner_parameters["rules"],
+                max_states=parameters.get("max_states", 100_000),
+            )
 
     return res
