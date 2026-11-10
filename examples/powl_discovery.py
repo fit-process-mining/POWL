@@ -25,6 +25,14 @@ def execute_script():
     image_path = os.path.join(current_dir, "powl_vis.svg")
     powl.save_visualization(model, file_path=image_path)
 
+    # Export as JSON
+    json_path = os.path.join(current_dir, "powl_model.powl")
+    powl.export(model, json_path)
+
+    # Export as BPMN
+    bpmn_path = os.path.join(current_dir, "powl_model.bpmn")
+    powl.export(model, bpmn_path)
+
     # Convert into a PM4Py Petri net
     petri_net, initial_marking, final_marking = powl.convert_to_petri_net(model)
     pm4py.view_petri_net(petri_net, initial_marking, final_marking, format="SVG")

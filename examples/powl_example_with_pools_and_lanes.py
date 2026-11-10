@@ -42,7 +42,7 @@ def generate_process_1():
 
 def generate_process_2():
 
-    log = powl.import_event_log(r"./examples/running-example.csv")
+    log = powl.import_event_log(r"running-example.csv")
     model = powl.discover(log, dfg_frequency_filtering_threshold=0.0)
 
     activity_to_pool_lane = {
