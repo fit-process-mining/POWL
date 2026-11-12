@@ -65,7 +65,7 @@ def dfg_graph(obj: IMDataStructureUVCL) -> nx.DiGraph:
 
 
 def build_cdg(rules: Sequence[AbstractRule], alphabet: set[str]) -> nx.DiGraph:
-    """Construct the student's constraint-dependency graph (CDG)."""
+    """Construct the constraint-dependency graph (CDG)."""
     graph = nx.DiGraph()
     graph.add_nodes_from(sorted(alphabet))
     graph.add_nodes_from((ARTIFICIAL_START, ARTIFICIAL_END))

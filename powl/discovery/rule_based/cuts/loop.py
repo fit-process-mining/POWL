@@ -25,7 +25,6 @@ class RuleAwareLoopCutUVCL(RuleAwareCut, POWLLoopCutUVCL):
         groups = super().holds(obj, parameters)
         if groups is None:
             return None
-        # The student's method checks rules after combining redo components.
         return [set(groups[0]), set().union(*groups[1:])]
 
     @staticmethod

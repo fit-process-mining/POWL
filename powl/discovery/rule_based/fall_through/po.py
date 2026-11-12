@@ -1,7 +1,7 @@
 """Rule-directed parallel/sequence fall-through from the reference RBIM.
 
-The dependency graph is an intermediate heuristic. As in the student's miner,
-its weak components become parallel branches and each branch is serialized
+The dependency graph is an intermediate heuristic. Its weak components become
+parallel branches, and each branch is serialized
 into sequence layers. It deliberately does not introduce a more permissive
 partial-order language than the reference process-tree construction.
 """

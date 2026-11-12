@@ -96,7 +96,7 @@ class RuleAwareCut:
     def project_rules(
         rules: Iterable[AbstractRule] | None, groups: Groups
     ) -> ProjectedRules:
-        """Project the student's obligations, including cross-branch rules.
+        """Project rule obligations, including those spanning branches.
 
         A binary rule that the parent discharges can still impose unary rules on
         its children.  For example, a response crossing a sequence boundary

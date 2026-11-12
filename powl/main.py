@@ -213,10 +213,12 @@ def discover(
 
 
 def discover_petri_net_from_ocel(ocel: OCEL, variant=OC_Variants.OC_POWL, parameters=None):
+    """Discover an object-centric process model from an OCEL event log."""
     return oc_discovery(ocel, variant=variant, parameters=parameters)
 
 
 def discover_from_dfg(dfg: DFG, variant=POWLDiscoveryVariant.DECISION_GRAPH_CYCLIC, parameters=None):
+    """Discover a POWL model directly from a weighted directly-follows graph."""
     return dfg_discovery(dfg, variant=variant, parameters=parameters)
 
 
@@ -261,6 +263,7 @@ def discover_from_partially_ordered_log(
 
 
 def view(powl: TaggedPOWL, use_frequency_tags=True):
+    """Open a basic visualization of a POWL model."""
     from powl.visualization.powl import visualizer as powl_visualizer
 
     gviz = powl_visualizer.apply(
@@ -270,6 +273,7 @@ def view(powl: TaggedPOWL, use_frequency_tags=True):
 
 
 def view_net(powl: TaggedPOWL, use_frequency_tags=True):
+    """Open a net-style visualization of a POWL model."""
     from powl.visualization.powl import visualizer as powl_visualizer
 
     gviz = powl_visualizer.apply(
@@ -279,6 +283,7 @@ def view_net(powl: TaggedPOWL, use_frequency_tags=True):
 
 
 def view_ocpn(object_centric_pn, selected_object_types=None, projected_views=False):
+    """Open an object-centric Petri net, optionally showing selected projections."""
     if selected_object_types is not None:
         from powl.discovery.object_centric.utils.filter_ocpn import filter_ocpn_by_object_types
         object_centric_pn = filter_ocpn_by_object_types(object_centric_pn, selected_object_types)
@@ -290,6 +295,7 @@ def view_ocpn(object_centric_pn, selected_object_types=None, projected_views=Fal
 
 
 def save_visualization(powl: TaggedPOWL, file_path: str, use_frequency_tags=True):
+    """Render a basic POWL visualization and save it to ``file_path``."""
     file_path = str(file_path)
     from powl.visualization.powl import visualizer as powl_visualizer
 
@@ -300,6 +306,7 @@ def save_visualization(powl: TaggedPOWL, file_path: str, use_frequency_tags=True
 
 
 def save_visualization_net(powl: TaggedPOWL, file_path: str, use_frequency_tags=True):
+    """Render a net-style POWL visualization and save it to ``file_path``."""
     file_path = str(file_path)
     from powl.visualization.powl import visualizer as powl_visualizer
 
@@ -310,12 +317,15 @@ def save_visualization_net(powl: TaggedPOWL, file_path: str, use_frequency_tags=
 
 
 def convert_to_petri_net(powl: TaggedPOWL):
+    """Convert a POWL model to a Petri net."""
     return powl_converter(powl)
 
 def convert_from_workflow_net(net: PetriNet) -> TaggedPOWL:
+    """Convert a workflow Petri net to a POWL model."""
     return convert_workflow_net_to_powl(net)
 
 def convert_to_bpmn(powl: TaggedPOWL):
+    """Convert a POWL model to a laid-out BPMN diagram."""
     bpmn, _, _ = to_bpmn(powl)
     bpmn = bpmn_layouter.apply(bpmn)
     return bpmn

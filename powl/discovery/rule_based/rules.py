@@ -68,7 +68,7 @@ class AbstractRule(ABC):
 
     @abstractmethod
     def repair_trace(self, trace: Trace) -> tuple[str, ...] | None:
-        """Apply the student's event-level repair, or return None to drop a trace.
+        """Apply the rule's event-level repair, or return None to drop a trace.
 
         Repairs delete events, trim prefixes/suffixes, or drop traces. They do
         not insert events. Edit-distance repair is implemented by the miner.

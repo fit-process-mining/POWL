@@ -106,8 +106,6 @@ def rule_xor(obj: IMDataStructureUVCL, rules, mine, parameters=None):
     if not groups or len(groups) <= 1:
         return None
     projected_rules = RuleAwareExclusiveChoiceCutUVCL.project_rules(rules, groups)
-    # This specific rule-based fallback uses unique projected variants in the
-    # student's algorithm. Preserve it; ordinary data-based cuts retain counts.
     children = [project_alphabet(obj, group, distinct=True) for group in groups]
     models = [
         mine(child, tuple(local)) for child, local in zip(children, projected_rules)
