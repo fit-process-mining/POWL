@@ -16,6 +16,7 @@ from pm4py.algo.discovery.inductive.fall_through.empty_traces import (
 from pm4py.objects.dfg.obj import DFG
 
 from powl.discovery.total_order_based.inductive.modeling import XorSpec
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import IMDataStructurePOT
 
 
 class POWLEmptyTracesUVCL(EmptyTracesUVCL):
@@ -27,6 +28,8 @@ class POWLEmptyTracesUVCL(EmptyTracesUVCL):
         manager: Manager = None,
         parameters: Optional[Dict[str, Any]] = None,
     ) -> Optional[Tuple[XorSpec, List[IMDataStructureUVCL]]]:
+        if isinstance(obj, IMDataStructurePOT):
+            return POWLEmptyTracesPOT.apply(obj, pool, manager, parameters)
         if cls.holds(obj, parameters):
             data_structure = copy(obj.data_structure)
             del data_structure[()]
@@ -36,6 +39,25 @@ class POWLEmptyTracesUVCL(EmptyTracesUVCL):
             ]
         else:
             return None
+
+
+class POWLEmptyTracesPOT(EmptyTracesUVCL):
+    @classmethod
+    def holds(cls, obj: IMDataStructurePOT, parameters=None) -> bool:
+        return any(trace.is_empty for trace in obj.data_structure)
+
+    @classmethod
+    def apply(
+        cls,
+        obj: IMDataStructurePOT,
+        pool=None,
+        manager=None,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Tuple[XorSpec, List[IMDataStructurePOT]]]:
+        if cls.holds(obj, parameters):
+            log = Counter({t: f for t, f in obj.data_structure.items() if not t.is_empty})
+            return XorSpec(2), [IMDataStructurePOT(Counter()), IMDataStructurePOT(log)]
+        return None
 
 
 class POWLEmptyTracesDFG(EmptyTracesDFG):

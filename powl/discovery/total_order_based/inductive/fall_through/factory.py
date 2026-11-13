@@ -20,6 +20,7 @@ from powl.discovery.total_order_based.inductive.fall_through.activity_once_per_t
 )
 from powl.discovery.total_order_based.inductive.fall_through.decision_graph.dfg_fall_through import (
     DFGFallThroughUVCL,
+    DFGFallThroughPOT,
 )
 from powl.discovery.total_order_based.inductive.fall_through.flower import (
     POWLFlowerModelDFG,
@@ -71,7 +72,7 @@ class FallThroughFactory:
                 POWLActivityConcurrentPOT,
                 POWLStrictTauLoopPOT,
                 POWLTauLoopPOT,
-                POWLFlowerModelPOT,
+                DFGFallThroughPOT if enable_dfg_fall_through else POWLFlowerModelPOT,
             ]
 
         elif type(obj) is IMDataStructureDFG:

@@ -158,6 +158,7 @@ class MaximalPartialOrderCut(Cut[T], ABC, Generic[T]):
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
     ) -> Optional[BinaryRelation]:
 
+        parameters = parameters or {}
         dfg = obj.dfg
         alphabet = sorted(dfu.get_vertices(dfg), key=lambda g: g.__str__())
         noise_threshold = None

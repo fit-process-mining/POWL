@@ -7,21 +7,26 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import (
     IMDataStructureUVCL,
 )
 
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import IMDataStructurePOT
 from powl.discovery.total_order_based.inductive.cuts.concurrency import (
     POWLConcurrencyCutDFG,
     POWLConcurrencyCutUVCL,
+    POWLConcurrencyCutPOT,
 )
 from powl.discovery.total_order_based.inductive.cuts.loop import (
     POWLLoopCutDFG,
     POWLLoopCutUVCL,
+    POWLLoopCutPOT,
 )
 from powl.discovery.total_order_based.inductive.cuts.sequence import (
     POWLStrictSequenceCutDFG,
     POWLStrictSequenceCutUVCL,
+    POWLStrictSequenceCutPOT,
 )
 from powl.discovery.total_order_based.inductive.cuts.xor import (
     POWLExclusiveChoiceCutDFG,
     POWLExclusiveChoiceCutUVCL,
+    POWLExclusiveChoiceCutPOT,
 )
 from powl.discovery.total_order_based.inductive.modeling import InductiveModel
 
@@ -37,6 +42,13 @@ class CutFactory:
                 POWLStrictSequenceCutUVCL,
                 POWLConcurrencyCutUVCL,
                 POWLLoopCutUVCL,
+            ]
+        elif type(obj) is IMDataStructurePOT:
+            return [
+                POWLExclusiveChoiceCutPOT,
+                POWLStrictSequenceCutPOT,
+                POWLConcurrencyCutPOT,
+                POWLLoopCutPOT,
             ]
         elif type(obj) is IMDataStructureDFG:
             return [

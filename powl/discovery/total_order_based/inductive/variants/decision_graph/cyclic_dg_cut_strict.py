@@ -10,7 +10,9 @@ from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
 from powl.discovery.total_order_based.inductive.variants.decision_graph.cyclic_dg_cut import (
     CyclicDecisionGraphCut,
     CyclicDecisionGraphCutUVCL,
+    CyclicDecisionGraphCutPOT,
 )
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import IMDataStructurePOT
 
 
 class StrictCyclicDecisionGraphCut(CyclicDecisionGraphCut[T], ABC):
@@ -61,3 +63,14 @@ class StrictCyclicDecisionGraphCutUVCL(
     ) -> List[IMDataStructureUVCL]:
 
         return CyclicDecisionGraphCutUVCL.project(obj, groups, parameters)
+
+
+class StrictCyclicDecisionGraphCutPOT(StrictCyclicDecisionGraphCut[IMDataStructurePOT]):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return CyclicDecisionGraphCutPOT.project(obj, groups, parameters)

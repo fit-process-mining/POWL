@@ -11,7 +11,7 @@ from pm4py.algo.discovery.inductive.fall_through.activity_concurrent import (
 
 from powl.discovery.total_order_based.inductive.dtypes.partial_order import IMDataStructurePOT, combined_project_pot_on_groups
 from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
-from powl.discovery.total_order_based.inductive.variants.decision_graph.factory_cyclic_dg import CutFactoryCyclicDecisionGraph
+from powl.discovery.total_order_based.inductive.cuts.factory import CutFactory
 from pm4py.objects.dfg import util as dfg_utils
 
 class POWLActivityConcurrentUVCL(ActivityConcurrentUVCL):
@@ -51,7 +51,7 @@ class POWLActivityConcurrentPOT(FallThrough[IMDataStructurePOT]):
             [remaining_activities],
             keep_empty=True,
         )[0]
-        return CutFactoryCyclicDecisionGraph.find_cut(projected, parameters=parameters)
+        return CutFactory.find_cut(projected, parameters=parameters)
 
     @classmethod
     def _get_candidate(

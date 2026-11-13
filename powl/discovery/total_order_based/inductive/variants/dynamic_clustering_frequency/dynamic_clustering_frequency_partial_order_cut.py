@@ -20,6 +20,10 @@ from powl.objects.BinaryRelation import BinaryRelation
 from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
 
 from powl.objects.utils.relation import get_transitive_closure_from_counter
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    combined_project_pot_on_groups,
+)
 
 ORDER_FREQUENCY_RATIO = "order frequency ratio"
 
@@ -33,6 +37,8 @@ def generate_order(obj: T, clusters, order_frequency_ratio):
     po = BinaryRelation([tuple(c) for c in sorted(clusters)])
     if type(obj) is IMDataStructureUVCL:
         efg_freq = compute_efg_frequencies(obj, groups=po.nodes)
+    elif type(obj) is IMDataStructurePOT:
+        efg_freq = compute_pot_efg_frequencies(obj, groups=po.nodes)
     elif type(obj) is IMDataStructureDFG:
         efg_freq = compute_dfg_transitive_closure(obj.dfg.graph, groups=po.nodes)
     else:
@@ -172,6 +178,29 @@ def compute_efg_frequencies(
     return res
 
 
+def compute_pot_efg_frequencies(obj: IMDataStructurePOT, groups):
+    """Count each possible cluster order once per trace, weighted by frequency.
+
+    Unordered events contribute both directions. Event multiplicity must not
+    inflate a trace's vote in the order frequency ratio.
+    """
+    activity_to_cluster = {a: group for group in groups for a in group}
+    result = {(g1, g2): 0 for g1 in groups for g2 in groups}
+    for trace, frequency in obj.data_structure.items():
+        seen_pairs = set()
+        for i, activity in enumerate(trace.activities):
+            g1 = activity_to_cluster[activity]
+            for j in range(i + 1, len(trace)):
+                g2 = activity_to_cluster[trace.activities[j]]
+                if not trace.precedes(j, i):
+                    seen_pairs.add((g1, g2))
+                if not trace.precedes(i, j):
+                    seen_pairs.add((g2, g1))
+        for pair in seen_pairs:
+            result[pair] += frequency
+    return result
+
+
 def compute_dfg_transitive_closure(dfg: Counter, groups) -> Dict[Tuple[str, str], int]:
 
     closure = get_transitive_closure_from_counter(dfg)
@@ -203,6 +232,7 @@ class DynamicClusteringFrequencyPartialOrderCut(Cut[T], ABC, Generic[T]):
     def holds(
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
     ) -> Optional[BinaryRelation]:
+        parameters = parameters or {}
         alphabet = sorted(dfu.get_vertices(obj.dfg), key=lambda g: g.__str__())
         clusters = [[a] for a in alphabet]
 
@@ -261,3 +291,16 @@ class DynamicClusteringFrequencyPartialOrderCutDFG(
         parameters: Optional[Dict[str, Any]] = None,
     ) -> List[IMDataStructureDFG]:
         return MaximalPartialOrderCutDFG.project(obj, groups, parameters)
+
+
+class DynamicClusteringFrequencyPartialOrderCutPOT(
+    DynamicClusteringFrequencyPartialOrderCut[IMDataStructurePOT]
+):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return combined_project_pot_on_groups(obj.data_structure, groups)

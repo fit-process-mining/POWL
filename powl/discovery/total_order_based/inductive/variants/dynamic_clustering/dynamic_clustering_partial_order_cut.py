@@ -14,6 +14,10 @@ from powl.discovery.total_order_based.inductive.variants.maximal.maximal_partial
 )
 from powl.objects.BinaryRelation import BinaryRelation
 from powl.discovery.total_order_based.inductive.modeling import PartialOrderSpec
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    IMDataStructurePOT,
+    combined_project_pot_on_groups,
+)
 
 
 def generate_order(clusters, efg):
@@ -149,7 +153,7 @@ class DynamicClusteringPartialOrderCut(Cut[T], ABC, Generic[T]):
         cls, obj: T, parameters: Optional[Dict[str, Any]] = None
     ) -> Optional[BinaryRelation]:
         alphabet = sorted(dfu.get_vertices(obj.dfg), key=lambda g: g.__str__())
-        efg = to_efg(obj)
+        efg = obj.efg if isinstance(obj, IMDataStructurePOT) else to_efg(obj)
         clusters = [[a] for a in alphabet]
         po = generate_order(clusters, efg)
         return po
@@ -182,3 +186,16 @@ class DynamicClusteringPartialOrderCutUVCL(
         parameters: Optional[Dict[str, Any]] = None,
     ) -> List[IMDataStructureUVCL]:
         return project_on_groups_with_unique_activities(obj.data_structure, groups)
+
+
+class DynamicClusteringPartialOrderCutPOT(
+    DynamicClusteringPartialOrderCut[IMDataStructurePOT]
+):
+    @classmethod
+    def project(
+        cls,
+        obj: IMDataStructurePOT,
+        groups: List[Collection[Any]],
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> List[IMDataStructurePOT]:
+        return combined_project_pot_on_groups(obj.data_structure, groups)
