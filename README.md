@@ -113,15 +113,6 @@ powl.export(model, "with-resources.bpmn", activity_to_pool_lane=assignments)
 
 The file extension selects the export format: `.powl` for POWL JSON, or `.bpmn` for BPMN.
 
-## Streamlit app
-
-Try the [hosted app](https://powl-miner.streamlit.app/), or run it from a repository checkout:
-
-```bash
-pip install -e ".[app]"
-streamlit run app.py
-```
-
 ## Reference
 
 Kourani, H., Park, G. & van der Aalst, W.M.P. A discovery technique for expressive yet sound process models. Process Sci 3, 14 (2026). https://doi.org/10.1007/s44311-026-00046-8
