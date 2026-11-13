@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,9 @@ START_ID = "@start"
 END_ID = "@end"
 FILE_EXTENSION = ".powl"
 ENCODING = "utf-8"
+MAX_JSON_BYTES = 5 * 1024 * 1024
+MAX_MODEL_NODES = 10_000
+MAX_MODEL_DEPTH = 64
 
 _TOP_LEVEL_FIELDS = {"format", "format_version", "metadata", "model"}
 _METADATA_FIELDS = {"name", "description", "creator", "created_at", "tool_name", "tool_version"}
@@ -52,6 +56,8 @@ def read_powl_json(path: str | Path) -> TaggedPOWL:
 def read_powl_json_document(path: str | Path) -> PowlJsonDocument:
     """Read a POWL JSON file and return the root model plus file metadata."""
     path = _validate_powl_file_extension(path)
+    if path.stat().st_size > MAX_JSON_BYTES:
+        raise PowlJsonValidationError(f"POWL JSON exceeds the {MAX_JSON_BYTES}-byte size limit.")
     with Path(path).open("r", encoding=ENCODING) as file:
         return loads_powl_json_document(file.read())
 
@@ -63,9 +69,13 @@ def loads_powl_json(text: str) -> TaggedPOWL:
 
 def loads_powl_json_document(text: str) -> PowlJsonDocument:
     """Parse a POWL JSON string and return the root model plus file metadata."""
+    if not isinstance(text, str):
+        raise PowlJsonValidationError("POWL JSON input must be text.")
+    if len(text.encode(ENCODING)) > MAX_JSON_BYTES:
+        raise PowlJsonValidationError(f"POWL JSON exceeds the {MAX_JSON_BYTES}-byte size limit.")
     try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
+        data = json.loads(text, object_pairs_hook=_unique_object, parse_constant=_reject_constant)
+    except (json.JSONDecodeError, RecursionError) as exc:
         raise PowlJsonValidationError(f"Invalid JSON: {exc}") from exc
     return from_powl_json_dict(data)
 
@@ -101,6 +111,7 @@ def dumps_powl_json(
         to_powl_json_dict(model, metadata=metadata),
         indent=indent,
         ensure_ascii=ensure_ascii,
+        allow_nan=False,
     )
 
 
@@ -119,6 +130,7 @@ def from_powl_json_dict(data: Mapping[str, Any]) -> PowlJsonDocument:
     if "model" not in data:
         raise PowlJsonValidationError("$.model is required.")
 
+    _validate_model_size(data["model"])
     metadata = _validate_metadata(data.get("metadata", {}), "$.metadata")
     model = _decode_model(data["model"], path="$.model", require_id=False)
     return PowlJsonDocument(model=model, metadata=metadata)
@@ -467,6 +479,38 @@ def _encode_choice_graph(model: ChoiceGraph, *, node_id: Optional[str], path: st
 # ---------------------------------------------------------------------------
 
 
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise PowlJsonValidationError(f"Duplicate JSON object field: {key!r}.")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value):
+    raise PowlJsonValidationError(f"Non-finite JSON number is not supported: {value}.")
+
+
+def _validate_model_size(model):
+    stack = [(model, 0, frozenset())]
+    count = 0
+    while stack:
+        node, depth, ancestors = stack.pop()
+        count += 1
+        if count > MAX_MODEL_NODES:
+            raise PowlJsonValidationError(f"POWL JSON exceeds the {MAX_MODEL_NODES}-node limit.")
+        if depth > MAX_MODEL_DEPTH:
+            raise PowlJsonValidationError(f"POWL JSON exceeds the nesting limit of {MAX_MODEL_DEPTH}.")
+        if isinstance(node, Mapping):
+            if id(node) in ancestors:
+                raise PowlJsonValidationError("POWL JSON contains a cyclic model reference.")
+            children = node.get("nodes", ())
+            if isinstance(children, (list, tuple)):
+                trail = ancestors | {id(node)}
+                stack.extend((child, depth + 1, trail) for child in children)
+
+
 def _validate_metadata(value: Any, path: str) -> dict[str, Any]:
     _require_mapping(value, path)
     _reject_unknown_fields(value, _METADATA_FIELDS, path)
@@ -476,6 +520,8 @@ def _validate_metadata(value: Any, path: str) -> dict[str, Any]:
             raise PowlJsonValidationError(
                 f"{path}.{key} must be a JSON string, number, or null."
             )
+        if isinstance(item, float) and not math.isfinite(item):
+            raise PowlJsonValidationError(f"{path}.{key} must be finite.")
     return metadata
 
 
@@ -494,8 +540,8 @@ def _validate_attributes(value: Any, *, allowed: set[str], path: str) -> dict[st
         cost = attributes["cost"]
         if isinstance(cost, bool) or not isinstance(cost, (int, float)):
             raise PowlJsonValidationError(f"{path}.cost must be a number.")
-        if cost < 0:
-            raise PowlJsonValidationError(f"{path}.cost must be non-negative.")
+        if (isinstance(cost, float) and not math.isfinite(cost)) or cost < 0:
+            raise PowlJsonValidationError(f"{path}.cost must be finite and non-negative.")
     return attributes
 
 
