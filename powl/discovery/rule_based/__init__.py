@@ -23,12 +23,18 @@ from .rules import (
     RespondedExistenceRule,
     ResponseRule,
 )
-from .validation import RuleValidationResult, validate_rules
+from .validation import RuleValidationResult, RuleViolationExample, validate_rules
+from .serialization import rule_catalog, rule_from_dict, rule_to_dict, validate_rule_consistency
 
 __all__ = [
     "discover_with_rules",
     "validate_rules",
     "RuleValidationResult",
+    "RuleViolationExample",
+    "rule_catalog",
+    "rule_from_dict",
+    "rule_to_dict",
+    "validate_rule_consistency",
     "RepairMode",
     "AbstractRule",
     "AtMostOnceRule",

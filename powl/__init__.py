@@ -19,6 +19,12 @@ from powl.main import (
     validate_rules,
 )
 from powl.io.powl_json import read_powl_json, write_powl_json
+from powl.discovery.rule_based.serialization import (
+    rule_catalog,
+    rule_from_dict,
+    rule_to_dict,
+    validate_rule_consistency,
+)
 from powl.discovery.total_order_based.inductive.variants.powl_discovery_varaints import (
     POWLDiscoveryVariant,
 )
@@ -35,7 +41,7 @@ from powl.objects import (
 )
 
 __name__ = "powl"
-__version__ = "2.3.9"
+__version__ = "2.4.0"
 
 __all__ = [
     # POWL model building
@@ -53,6 +59,10 @@ __all__ = [
     "discover",
     "discover_with_rules",
     "validate_rules",
+    "rule_catalog",
+    "rule_from_dict",
+    "rule_to_dict",
+    "validate_rule_consistency",
     "discover_from_dfg",
     "discover_from_partially_ordered_log",
     "discover_petri_net_from_ocel",

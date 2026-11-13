@@ -14,6 +14,14 @@ from powl.discovery.rule_based.rules import AbstractRule, normalize_rules
 
 
 @dataclass(frozen=True, slots=True)
+class RuleViolationExample:
+    """One observed violating activity sequence and its case frequency."""
+
+    activities: tuple[str, ...]
+    frequency: int
+
+
+@dataclass(frozen=True, slots=True)
 class RuleValidationResult:
     """Trace-weighted metrics for a single rule on one event log.
 
@@ -39,6 +47,7 @@ class RuleValidationResult:
     vacuously_satisfied_traces: int
     support: float
     confidence: float
+    violation_examples: tuple[RuleViolationExample, ...] = ()
 
     @property
     def violation_rate(self) -> float:
@@ -53,6 +62,7 @@ def validate_rules(
     activity_key: str = "concept:name",
     case_id_key: str = "case:concept:name",
     timestamp_key: str | None = "time:timestamp",
+    max_examples: int = 0,
 ) -> tuple[RuleValidationResult, ...]:
     """Evaluate the supplied rule set without changing it or the event log.
 
@@ -65,9 +75,14 @@ def validate_rules(
     Results are deterministically ordered by template name and arguments, with
     duplicate rules evaluated once. They contain counts as well as fractions so
     vacuous confidence can be distinguished from confidence backed by data.
+    Set ``max_examples`` to include up to that many violating variants, ordered
+    by descending case frequency and then activity labels. The original log is
+    never modified; examples are immutable copies of the observed sequences.
     """
     from powl.discovery.rule_based.log_utils import to_variants
 
+    if isinstance(max_examples, bool) or not isinstance(max_examples, int) or max_examples < 0:
+        raise ValueError("max_examples must be a nonnegative integer.")
     supplied = normalize_rules(rules)
     variants = to_variants(
         log,
@@ -79,6 +94,7 @@ def validate_rules(
     results = []
     for rule in supplied:
         satisfied = activated = satisfied_activated = vacuous = 0
+        violations = []
         for trace, frequency in variants.items():
             active = rule.is_activated(trace)
             valid = rule.accepts(trace)
@@ -90,6 +106,8 @@ def validate_rules(
                     satisfied_activated += frequency
                 else:
                     vacuous += frequency
+            elif max_examples:
+                violations.append(RuleViolationExample(tuple(trace), frequency))
         support = satisfied / total if total else 0.0
         confidence = (
             satisfied_activated / activated
@@ -107,9 +125,14 @@ def validate_rules(
                 vacuously_satisfied_traces=vacuous,
                 support=support,
                 confidence=confidence,
+                violation_examples=tuple(
+                    sorted(violations, key=lambda example: (-example.frequency, example.activities))[
+                        :max_examples
+                    ]
+                ),
             )
         )
     return tuple(results)
 
 
-__all__ = ["RuleValidationResult", "validate_rules"]
+__all__ = ["RuleValidationResult", "RuleViolationExample", "validate_rules"]
