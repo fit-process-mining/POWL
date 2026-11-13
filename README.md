@@ -2,7 +2,7 @@
 
 **Process mining with the Partially Ordered Workflow Language (POWL 2.0).**
 
-POWL Miner is a Python library for discovering, constructing, visualizing, and exporting process models. Models can be saved as POWL JSON or as BPMN 2.0 with diagram layout, including pools and lanes.
+POWL is a Python library for discovering process models from event data. You can view the models, build your own, and export them as POWL JSON or BPMN diagrams, including pools and lanes.
 
 ## Installation
 
@@ -23,24 +23,64 @@ log = powl.import_event_log("events.csv")  # Also supports .xes and .xes.gz
 model = powl.discover(log)
 
 powl.view(model)                       # View the POWL model
+powl.save_visualization(model, "model.svg")  # Save an image
 powl.export(model, "model.powl")       # POWL JSON
 powl.export(model, "model.bpmn")       # BPMN 2.0
 ```
 
-By default, discovery expects the `case:concept:name`, `concept:name`, and `time:timestamp` columns. Pass the corresponding options to `powl.discover()` for custom columns and filtering thresholds.
+The log needs a case ID, an activity name, and a timestamp for each event. By default, these columns are named `case:concept:name`, `concept:name`, and `time:timestamp`. You can also pass a pandas DataFrame directly to `powl.discover()`.
+
+## Use your own column names
+
+For a CSV with columns named `case_id`, `activity`, and `timestamp`:
+
+```python
+custom_log = powl.import_event_log("events.csv", timestamp_key="timestamp")
+custom_model = powl.discover(
+    custom_log,
+    case_id_key="case_id",
+    activity_key="activity",
+    timestamp_key="timestamp",
+)
+```
+
+To reduce the influence of infrequent behavior, try filtering during discovery:
+
+```python
+filtered_model = powl.discover(log, dfg_frequency_filtering_threshold=0.1)
+```
+
+The threshold ranges from `0` to less than `1`; higher values apply stronger filtering.
+
+## Discover parallel activities
+
+If activities can happen at the same time, use their timestamps to discover a model that preserves this parallel behavior. When start and completion events are available, the library also uses overlapping activity durations.
+
+```python
+parallel_model = powl.discover_from_partially_ordered_log(log)
+powl.view(parallel_model)
+```
+
+## Work with object-centric event logs
+
+For event data that connects several kinds of objects, such as orders and items, import an OCEL file and discover an object-centric Petri net:
+
+```python
+ocel = powl.import_ocel("events.sqlite")
+object_centric_model = powl.discover_petri_net_from_ocel(ocel)
+powl.view_ocpn(object_centric_model)
+```
 
 ## Rule-aware discovery
 
-Supply declarative constraints to the rule-aware Inductive Miner. Its cuts,
-recursive rule projections, repairs, and fall-throughs produce native POWL models:
+Include known process rules when discovering a model. For example, CT and MRI must not occur in the same case, and treatment must be followed immediately by discharge:
 
 ```python
 from powl.discovery.rule_based import ChainResponseRule, NotCoExistenceRule
 
 rules = {NotCoExistenceRule("CT", "MRI"), ChainResponseRule("Treat", "Discharge")}
-metrics = powl.validate_rules(log, rules)  # Optional; does not change the rules
-model = powl.discover_with_rules(log, rules, repair_mode="event_level")
-powl.export(model, "rule-aware.powl")
+rule_model = powl.discover_with_rules(log, rules)
+powl.export(rule_model, "rule-aware.powl")
 ```
 
 ## Construct and exchange models
@@ -51,12 +91,17 @@ POWL models can also be constructed directly, without an event log:
 model = powl.sequence([powl.Activity("Receive"), powl.Activity("Check")])
 powl.export(model, "handmade.powl")
 powl.export(model, "handmade.bpmn")
-powl.save_visualization(model, "handmade.svg")
 ```
 
-Import a previously exported POWL JSON file with `powl.read_powl_json("model.powl")`.
+Reopen a saved model with `powl.read_powl_json("handmade.powl")`.
 
-To export a BPMN collaboration with pools and lanes, pass the activity assignments:
+To use a POWL model with other process-mining tools, convert it to a Petri net:
+
+```python
+net, initial_marking, final_marking = powl.convert_to_petri_net(model)
+```
+
+To add pools and lanes to the BPMN export, assign each activity a pool and lane:
 
 ```python
 assignments = {
