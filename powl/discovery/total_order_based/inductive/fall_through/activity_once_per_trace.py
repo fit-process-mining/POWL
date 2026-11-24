@@ -43,5 +43,4 @@ class POWLActivityOncePerTracePOT(POWLActivityConcurrentPOT):
             if not candidates:
                 return None
 
-        candidates = sorted(candidates, key=lambda a: a.__str__())
-        return candidates[0] if candidates else None
+        return min(candidates) if candidates else None

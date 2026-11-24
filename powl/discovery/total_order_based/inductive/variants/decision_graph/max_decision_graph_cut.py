@@ -34,7 +34,7 @@ class MaximalDecisionGraphCut(Cut[T], ABC, Generic[T]):
     ) -> Optional[List[Any]]:
 
         alphabet = parameters["alphabet"]
-        transitive_successors = parameters["transitive_successors"]
+        _, transitive_successors = dfu.get_transitive_relations(obj.dfg)
 
         groups = [frozenset([a]) for a in alphabet]
 
@@ -59,13 +59,7 @@ class MaximalDecisionGraphCut(Cut[T], ABC, Generic[T]):
         end_acts = set(obj.dfg.end_activities.keys())
 
         alphabet = sorted(dfu.get_vertices(dfg), key=lambda g: g.__str__())
-        transitive_predecessors, transitive_successors = dfu.get_transitive_relations(
-            dfg
-        )
-
         parameters["alphabet"] = alphabet
-        parameters["transitive_predecessors"] = transitive_predecessors
-        parameters["transitive_successors"] = transitive_successors
 
         groups = cls.holds(obj, parameters)
         if groups is None:

@@ -25,9 +25,9 @@ class POWLEmptyTracesDecisionGraphUVCL(EmptyTracesUVCL):
         obj: IMDataStructureUVCL,
         parameters: Optional[Dict[str, Any]] = None,
     ) -> bool:
-        if isinstance(obj, IMDataStructurePOT):
-            return any(len(t) == 0 for t in obj.data_structure)
-        return EmptyTracesUVCL.holds(obj, parameters)
+        # A log containing only the empty variant is already a silent base case.
+        empty = PartialOrderTrace.empty() if isinstance(obj, IMDataStructurePOT) else ()
+        return len(obj.data_structure) > 1 and empty in obj.data_structure
 
     @classmethod
     def apply(
@@ -40,9 +40,7 @@ class POWLEmptyTracesDecisionGraphUVCL(EmptyTracesUVCL):
         if cls.holds(obj, parameters):
             if isinstance(obj, IMDataStructurePOT):
                 data_structure: Counter[PartialOrderTrace] = copy(obj.data_structure)
-                for trace in list(data_structure.keys()):
-                    if len(trace) == 0:
-                        del data_structure[trace]
+                del data_structure[PartialOrderTrace.empty()]
                 children = [IMDataStructurePOT(data_structure)]
                 return ChoiceGraphSpec(
                     size=1,

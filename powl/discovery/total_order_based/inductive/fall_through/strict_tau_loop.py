@@ -8,7 +8,9 @@ from pm4py.algo.discovery.inductive.fall_through.strict_tau_loop import (
     StrictTauLoopUVCL,
 )
 
-from powl.discovery.total_order_based.inductive.dtypes.partial_order import IMDataStructurePOT, PartialOrderTrace, split_project_pot_by_start_boundaries
+from powl.discovery.total_order_based.inductive.dtypes.partial_order import (
+    BoundaryMode, IMDataStructurePOT, split_project_pot_by_start_boundaries,
+)
 from powl.discovery.total_order_based.inductive.modeling import LoopSpec
 
 
@@ -29,16 +31,18 @@ class POWLStrictTauLoopUVCL(StrictTauLoopUVCL):
                 IMDataStructureUVCL(Counter()),
             ]
 
+
 class POWLStrictTauLoopPOT(FallThrough[IMDataStructurePOT]):
+    boundary_mode: BoundaryMode = "end_to_start"
+
     @classmethod
     def _get_projected_log(
         cls, im_data_struct: IMDataStructurePOT, parameters: Optional[Dict[str, Any]] = None
     ) -> IMDataStructurePOT:
-        log = im_data_struct.data_structure
-        start_acts=set(im_data_struct.dfg.start_activities)
-        end_acts=set(im_data_struct.dfg.end_activities)
-        proj_data_structure = split_project_pot_by_start_boundaries(log,"end_to_start",start_acts,end_acts)
-        return proj_data_structure
+        return split_project_pot_by_start_boundaries(
+            im_data_struct.data_structure, cls.boundary_mode,
+            im_data_struct.dfg.start_activities, im_data_struct.dfg.end_activities,
+        )
 
     @classmethod
     def holds(
@@ -46,7 +50,12 @@ class POWLStrictTauLoopPOT(FallThrough[IMDataStructurePOT]):
         obj: IMDataStructurePOT,
         parameters: Optional[Dict[str, Any]] = None,
     ) -> bool:
-        return sum(cls._get_projected_log(obj).data_structure.values()) > sum(obj.data_structure.values())
+        # A DFG edge witnesses consecutive events in some linear extension.
+        # Counting POT alternatives would mistake refinements for new iterations.
+        dfg = obj.dfg
+        return any(b in dfg.start_activities and
+                   (cls.boundary_mode == "any_to_start" or a in dfg.end_activities)
+                   for a, b in obj.unfiltered_dfg.graph)
 
     @classmethod
     def apply(
@@ -56,7 +65,6 @@ class POWLStrictTauLoopPOT(FallThrough[IMDataStructurePOT]):
         manager=None,
         parameters: Optional[Dict[str, Any]] = None,
     ) -> Optional[Tuple[LoopSpec, List[IMDataStructurePOT]]]:
-        proj_data_struct = cls._get_projected_log(obj)
-        if sum(proj_data_struct.data_structure.values()) > sum(obj.data_structure.values()):
-            return LoopSpec(2), [proj_data_struct,IMDataStructurePOT(Counter())]
-            
+        if cls.holds(obj, parameters):
+            return LoopSpec(2), [cls._get_projected_log(obj), IMDataStructurePOT(Counter())]
+        return None

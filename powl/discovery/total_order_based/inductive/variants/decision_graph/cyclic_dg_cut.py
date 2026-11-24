@@ -34,6 +34,8 @@ class CyclicDecisionGraphCut(MaximalDecisionGraphCut[T], ABC):
         for a, b in combinations(alphabet, 2):
             if (a, b) in dfg.graph and (b, a) in dfg.graph:
                 groups = cut_util.merge_groups_based_on_activities(a, b, groups)
+                if len(groups) == 1:
+                    return None
 
         if len(groups) < 2:
             return None

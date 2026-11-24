@@ -5,11 +5,15 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
+from itertools import chain, combinations, groupby, pairwise
+from operator import ne
 from typing import Any, Collection, FrozenSet, Iterable, List, Optional, Sequence, Tuple, Literal, Union
 
 import pandas as pd
 from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureLog
 from pm4py.objects.dfg.obj import DFG
+
+from powl.discovery.total_order_based.inductive.dtypes.pot_projection import split_at_boundaries
 
 ArtifactWeighting = Literal["normalized", "unit"]
 BoundaryMode = Literal["end_to_start", "any_to_start"]
@@ -17,7 +21,7 @@ BoundaryMode = Literal["end_to_start", "any_to_start"]
 IndexPair = Tuple[int, int]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class PartialOrderTrace:
     """Event-indexed partially ordered trace variant.
 
@@ -37,12 +41,9 @@ class PartialOrderTrace:
     activities: Tuple[Any, ...]
     order: FrozenSet[IndexPair] = frozenset()
 
-    def __post_init__(self):
-        activities = tuple(self.activities)
-        order = frozenset((int(i), int(j)) for i, j in self.order)
-
-        object.__setattr__(self, "activities", activities)
-        object.__setattr__(self, "order", order)
+    def __init__(self, activities: Iterable[Any], order: Iterable[IndexPair] = frozenset()):
+        object.__setattr__(self, "activities", tuple(activities))
+        object.__setattr__(self, "order", frozenset((int(i), int(j)) for i, j in order))
 
     def __len__(self) -> int:
         return len(self.activities)
@@ -78,19 +79,47 @@ class PartialOrderTrace:
         return frozenset(
             (i, j)
             for i, j in self.order
-            if not (self.successors[i] & self.predecessors[j])
+            if self.successors[i].isdisjoint(self.predecessors[j])
         )
 
     @cached_property
+    def serial_blocks(self) -> tuple[tuple[int, ...], ...]:
+        """Finest blocks such that every event in a block precedes all later blocks."""
+        earliest = [0] * len(self)
+        latest = [len(self) - 1] * len(self)
+        for before, after in self.order:
+            earliest[after] += 1
+            latest[before] -= 1
+        topological = sorted(range(len(self)), key=earliest.__getitem__)
+        blocks = []
+        start = 0
+        last_position = -1
+        for position, event in enumerate(topological):
+            # The prefix is fixed as a set iff none of its events can occur later.
+            last_position = max(last_position, latest[event])
+            if position == last_position:
+                blocks.append(tuple(topological[start:position + 1]))
+                start = position + 1
+        return tuple(blocks)
+
+    @cached_property
+    def is_layered(self) -> bool:
+        """Whether each serial block is an antichain (includes timestamp ties)."""
+        cross_pairs = 0
+        earlier = 0
+        for block in self.serial_blocks:
+            cross_pairs += earlier * len(block)
+            earlier += len(block)
+        return cross_pairs == len(self.order)
+
+    @cached_property
     def minimal_indices(self) -> FrozenSet[int]:
-        """Events with no predecessors.
-        """
+        """Events with no predecessors."""
         return frozenset(i for i in range(len(self)) if not self.predecessors[i])
 
     @cached_property
     def maximal_indices(self) -> FrozenSet[int]:
-        """Events with no successors.
-        """
+        """Events with no successors."""
         return frozenset(i for i in range(len(self)) if not self.successors[i])
 
     @classmethod
@@ -123,51 +152,12 @@ class PartialOrderTrace:
         if time_window is not None:
             time_window = _normalize_time_window(time_window)
 
-        indexed_events = [
-            (original_index, activity, pd.Timestamp(timestamp))
-            for original_index, (activity, timestamp)
-            in enumerate(zip(activities, timestamps))
-        ]
+        return cls._from_timestamp_key(*_timestamp_key(activities, timestamps, time_window))
 
-        indexed_events.sort(
-            key=lambda item: (
-                item[2],  # timestamp
-                item[1],  # activity label
-                item[0],  # original index as final deterministic tie-breaker
-            )
-        )
-
-        sorted_activities = tuple(
-            activity
-            for _, activity, _
-            in indexed_events
-        )
-
-        sorted_times = tuple(
-            timestamp
-            for _, _, timestamp
-            in indexed_events
-        )
-
-        order = set()
-
-        for i, time_i in enumerate(sorted_times):
-            threshold = time_i if time_window is None else time_i + time_window
-            first_j = bisect_right(sorted_times, threshold)
-
-            for j in range(first_j, len(sorted_times)):
-                order.add((i, j))
-
-        # for i, time_i in enumerate(sorted_times):
-        #     for j, time_j in enumerate(sorted_times):
-        #         if i == j:
-        #             continue
-        #
-        #         if _strictly_before_with_window(time_i, time_j, time_window):
-        #             order.add((i, j))
-
-        return cls(sorted_activities, frozenset(order))
-
+    @classmethod
+    def _from_timestamp_key(cls, labels, successors):
+        edges = ((i, j) for i, first in enumerate(successors) for j in range(first, len(labels)))
+        return cls(labels, edges)
 
     def precedes(self, i: int, j: int) -> bool:
         return (i, j) in self.order
@@ -175,165 +165,47 @@ class PartialOrderTrace:
     def concurrent(self, i: int, j: int) -> bool:
         return i != j and (i, j) not in self.order and (j, i) not in self.order
 
-
     def combined_project(self, group: Collection[Any]) -> "PartialOrderTrace":
         """Combined projection for partial-order traces.
 
         All events belonging to the group will be combined into a single sub-POT.
         """
-        group_set = set(group)
-        kept_old_indices = [i for i, activity in enumerate(self.activities) if activity in group_set]
-        if not kept_old_indices:
-            return PartialOrderTrace.empty()
-
-        return self._create_sub_trace(kept_old_indices)
-
+        group_set = group if isinstance(group, (set, frozenset)) else set(group)
+        indices = [i for i, activity in enumerate(self.activities) if activity in group_set]
+        return self.induced_subtrace(indices)
 
     def split_project(self, group: Collection[Any]) -> List["PartialOrderTrace"]:
-        """Conservative split projection for partial-order traces.
-
-        Start with selected events. Events are placed in the same segment if they
-        are connected by evidence of belonging together: either concurrency or a
-        cover relation in the transitive reduction.
-        """
-        group_set = set(group)
-        if not group_set:
-            return []
-
-        group_indices = [
-            i
-            for i, activity in enumerate(self.activities)
-            if activity in group_set
-        ]
-
-        if not group_indices:
-            return []
-
-        reduction = self.transitive_reduction_edges
-
-        def should_merge_events(id1: int, id2: int) -> bool:
-            return (
-                    self.concurrent(id1, id2)
-                    or (id1, id2) in reduction
-                    or (id2, id1) in reduction
-            )
-
-        return self._split_by_merge_predicate(
-            group_indices,
-            should_merge_events,
-        )
+        """Maximal nonempty visits to the group across all linear extensions."""
+        selected = frozenset(group)
+        return [part for part in split_at_boundaries(self, selected.__contains__, ne)
+                if part.activities[0] in selected]
 
     def split_project_by_start_boundaries(
-            self,
-            boundary_mode: BoundaryMode,
-            start_activities: Collection[Any],
-            end_activities: Collection[Any] = frozenset(),
+        self,
+        boundary_mode: BoundaryMode,
+        start_activities: Collection[Any],
+        end_activities: Collection[Any] = frozenset(),
     ) -> List["PartialOrderTrace"]:
-        """Split the whole POT into fragments using start-activity boundaries.
+        classify, boundary = _tau_boundary(boundary_mode, start_activities, end_activities)
+        return list(split_at_boundaries(self, classify, boundary)) if self else [self]
 
-        All events are considered.
-
-        Merge rules:
-        * concurrent events are always merged
-        * transitive-reduction edges are merged unless they cross a boundary
-
-        Boundary modes:
-        * "end_to_start": cut only direct cover edges from end activity to start activity
-        * "any_to_start": cut every direct cover edge leading to a start activity
-        """
-        if self.is_empty:
-            return []
-
-        if boundary_mode not in ("end_to_start", "any_to_start"):
-            raise ValueError(
-                "boundary_mode must be 'end_to_start' or 'any_to_start'"
-            )
-
-        start_set = set(start_activities)
-        end_set = set(end_activities)
-
-        all_indices = list(range(len(self)))
-        reduction = self.transitive_reduction_edges
-
-        def is_boundary_edge(src: int, tgt: int) -> bool:
-            tgt_is_start = self.activities[tgt] in start_set
-
-            if boundary_mode == "end_to_start":
-                return tgt_is_start and self.activities[src] in end_set
-
-            # boundary_mode == "any_to_start"
-            return tgt_is_start
-
-        def should_merge_events(id1: int, id2: int) -> bool:
-            if self.concurrent(id1, id2):
-                return True
-
-            if (id1, id2) in reduction:
-                return not is_boundary_edge(id1, id2)
-
-            if (id2, id1) in reduction:
-                return not is_boundary_edge(id2, id1)
-
-            return False
-
-        return self._split_by_merge_predicate(
-            all_indices,
-            should_merge_events,
-        )
-
-    def _split_by_merge_predicate(
-            self,
-            indices: Sequence[int],
-            should_merge_events,
-    ) -> List["PartialOrderTrace"]:
-        merge_graph = {i: set() for i in indices}
-
-        for pos, i in enumerate(indices):
-            for j in indices[pos + 1:]:
-                if should_merge_events(i, j):
-                    merge_graph[i].add(j)
-                    merge_graph[j].add(i)
-
-        # Connected components of the merge graph.
-        components: List[List[int]] = []
-        visited = set()
-
-        for start in indices:
-            if start in visited:
-                continue
-
-            stack = [start]
-            visited.add(start)
-            component = []
-
-            while stack:
-                current = stack.pop()
-                component.append(current)
-
-                for neighbor in merge_graph[current]:
-                    if neighbor not in visited:
-                        visited.add(neighbor)
-                        stack.append(neighbor)
-
-            components.append(component)
-
-        return [
-            self._create_sub_trace(sorted(component))
-            for component in sorted(components, key=lambda c: min(c))
-        ]
-
-    def _create_sub_trace(self, old_indices):
-        old_to_new = {old_i: new_i for new_i, old_i in enumerate(old_indices)}
-        new_activities = tuple(self.activities[i] for i in old_indices)
-
-        new_order = frozenset(
-            (old_to_new[i], old_to_new[j])
-            for i in old_indices
-            for j in self.successors[i]
-            if j in old_indices
-        )
-
-        return PartialOrderTrace(new_activities, new_order)
+    def induced_subtrace(self, indices: Sequence[int]) -> "PartialOrderTrace":
+        """Keep the given event indices in their supplied indexing order."""
+        if len(indices) == len(self) and all(i == j for i, j in enumerate(indices)):
+            return self
+        activities = tuple(self.activities[i] for i in indices)
+        if len(indices) < 2:
+            return PartialOrderTrace(activities)
+        # For a short visit, probing retained pairs avoids scanning (or copying)
+        # the full relation. Sparse parents are cheaper to scan by edge.
+        if len(indices) ** 2 < len(self.order):
+            order = ((i, j) for i, a in enumerate(indices) for j, b in enumerate(indices)
+                     if (a, b) in self.order)
+        else:
+            old_to_new = {old: new for new, old in enumerate(indices)}
+            order = ((old_to_new[a], old_to_new[b]) for a, b in self.order
+                     if a in old_to_new and b in old_to_new)
+        return PartialOrderTrace(activities, order)
 
 
 def _normalize_time_window(window: timedelta | pd.Timedelta) -> pd.Timedelta:
@@ -357,11 +229,14 @@ def _normalize_time_window(window: timedelta | pd.Timedelta) -> pd.Timedelta:
     return window
 
 
-# def _strictly_before_with_window(time_i: Any, time_j: Any, window: Optional[pd.Timedelta]) -> bool:
-#     if window is None:
-#         return pd.Timestamp(time_i) < pd.Timestamp(time_j)
-#     else:
-#         return pd.Timestamp(time_i) + window < pd.Timestamp(time_j)
+def _timestamp_key(activities, timestamps, window):
+    # A timestamp order is determined by the first successor of each event
+    # in time order. Absolute times need not be kept in the variant key.
+    events = sorted(zip(map(pd.Timestamp, timestamps), activities))
+    times = [time for time, _ in events]
+    labels = tuple(label for _, label in events)
+    successors = tuple(bisect_right(times, t if window is None else t + window) for t in times)
+    return labels, successors
 
 
 def log_to_pot_variants(
@@ -371,111 +246,98 @@ def log_to_pot_variants(
     case_id_key: str,
     time_window: Optional[Union[timedelta, pd.Timedelta]],
 ) -> Counter:
-    traces = []
-
-    for _, case_df in df.groupby(case_id_key, sort=False):
-        trace = PartialOrderTrace.from_timestamped_events(
-            activities=case_df[activity_key].tolist(),
-            timestamps=case_df[timestamp_key].tolist(),
-            time_window=time_window,
-        )
-        traces.append(trace)
-
-    return get_partial_order_variants(traces)
+    if time_window is not None:
+        time_window = _normalize_time_window(time_window)
+    counts = Counter(
+        _timestamp_key(case[activity_key], case[timestamp_key], time_window)
+        for _, case in df.groupby(case_id_key, sort=False)
+    )
+    return Counter({PartialOrderTrace._from_timestamp_key(*key): freq for key, freq in counts.items()})
 
 
 def get_partial_order_variants(traces: Iterable[PartialOrderTrace]) -> Counter:
-    """
-    Convert POTs to a Counter-based variant representation.
-    """
-    log = Counter()
-    for variant in traces:
-        key = PartialOrderTrace(variant.activities, variant.order)
-        log[key] += 1
-    return log
+    return Counter(traces)
 
 
 def discover_dfg_efg_pot(
         log: Counter[PartialOrderTrace],
         weighting: ArtifactWeighting = "unit",
 ) -> Tuple[DFG, Counter]:
-    """
-    Discover a full-frequency start/end/DFG/EFG artifacts from partial-order variants.
-    """
+    """Compute native start/end, directly-follows and eventually-follows weights."""
+    if weighting == "unit":
+        return _unit_dfg(log), _unit_efg(log)
+    if weighting != "normalized":
+        raise ValueError("weighting must be 'unit' or 'normalized'")
     dfg = DFG()
     efg = Counter()
-    for trace, trace_freq in _iter_pot_variants(log):
-        if len(trace) == 0:
-            continue
-        if weighting == "normalized":
-            start, end, local_dfg, local_efg = _trace_normalized_expanded_counters(trace)
-        elif weighting == "unit":
-            start, end, local_dfg, local_efg = _trace_unit_expanded_counters(trace)
-        else:
-            raise ValueError("weighting must be 'unit' or 'normalized'")
-        for activity, value in start.items():
-            dfg.start_activities[activity] += trace_freq * value
-        for activity, value in end.items():
-            dfg.end_activities[activity] += trace_freq * value
-        for pair, value in local_dfg.items():
-            dfg.graph[pair] += trace_freq * value
-        for pair, value in local_efg.items():
-            efg[pair] += trace_freq * value
+    for trace, freq in log.items():
+        start, end, direct, eventual = _trace_normalized_expanded_counters(trace)
+        for total, local in ((dfg.start_activities, start), (dfg.end_activities, end),
+                             (dfg.graph, direct), (efg, eventual)):
+            for key, value in local.items():
+                total[key] += freq * value
     return dfg, efg
 
 
-def _iter_pot_variants(log: Counter[PartialOrderTrace]):
-    for trace, freq in log.items():
-        yield trace, freq
-
-
-def _trace_unit_expanded_counters(
-    trace: PartialOrderTrace,
-) -> Tuple[Counter, Counter, Counter, Counter]:
-    """Unit-weight expanded start/end/DFG/EFG counters.
-
-    * For ordered event pairs i < j, add full mass 1.0 to label_i -> label_j.
-    * For concurrent event pairs i || j, add full unit mass in both directions:
-      label_i -> label_j += 1.0
-      label_j -> label_i += 1.0
-    """
+def _unit_pairs(trace, *, direct):
+    """Yield label pairs and the number of event pairs contributing unit weight."""
     labels = trace.activities
-    order = trace.order
-    n = len(trace)
-
-    start = Counter()
-    end = Counter()
-    dfg = Counter()
-    efg = Counter()
-
-    # start
-    for i in trace.minimal_indices:
-        start[labels[i]] += 1.0
-
-    # end
-    for i in trace.maximal_indices:
-        end[labels[i]] += 1.0
-
-    # causal DFG edges
-    for i, j in trace.transitive_reduction_edges:
-        dfg[(labels[i], labels[j])] += 1.0
-
-    # pairwise EFG and concurrent DFG
-    for i in range(n):
-        for j in range(i + 1, n):
-            if (i, j) in order:
-                efg[(labels[i], labels[j])] += 1.0
-            elif (j, i) in order:
-                efg[(labels[j], labels[i])] += 1.0
+    if trace.is_layered:
+        blocks = trace.serial_blocks
+        if direct and len(blocks) == len(trace):
+            for (i,), (j,) in pairwise(blocks):
+                yield (labels[i], labels[j]), 1
+            return
+        # Covers span neighboring layers. Eventual precedence spans all earlier
+        # layers. Distinct events in the same layer contribute both directions.
+        earlier = Counter()
+        for block in blocks:
+            current = Counter(labels[i] for i in block)
+            for b, n in current.items():
+                for a, count in earlier.items():
+                    yield (a, b), count * n
+                for a, count in current.items():
+                    pairs = (count - (a == b)) * n
+                    if pairs:
+                        yield (a, b), pairs
+            if direct:
+                earlier = current
             else:
-                # DFG edges
-                dfg[(labels[i], labels[j])] += 1.0
-                dfg[(labels[j], labels[i])] += 1.0
-                # EFG edges
-                efg[(labels[i], labels[j])] += 1.0
-                efg[(labels[j], labels[i])] += 1.0
+                earlier.update(current)
+    else:
+        ordered_pairs = trace.transitive_reduction_edges if direct else trace.order
+        for i, j in ordered_pairs:
+            yield (labels[i], labels[j]), 1
+        for i, j in combinations(range(len(trace)), 2):
+            if trace.concurrent(i, j):
+                yield (labels[i], labels[j]), 1
+                yield (labels[j], labels[i]), 1
 
-    return start, end, dfg, efg
+
+def _unit_dfg(log):
+    dfg = DFG()
+    for trace, freq in log.items():
+        if not trace:
+            continue
+        if trace.is_layered:
+            sources, sinks = trace.serial_blocks[0], trace.serial_blocks[-1]
+        else:
+            sources, sinks = trace.minimal_indices, trace.maximal_indices
+        for i in sources:
+            dfg.start_activities[trace.activities[i]] += freq
+        for i in sinks:
+            dfg.end_activities[trace.activities[i]] += freq
+        for pair, count in _unit_pairs(trace, direct=True):
+            dfg.graph[pair] += freq * count
+    return dfg
+
+
+def _unit_efg(log):
+    efg = Counter()
+    for trace, freq in log.items():
+        for pair, count in _unit_pairs(trace, direct=False):
+            efg[pair] += freq * count
+    return efg
 
 
 
@@ -589,22 +451,20 @@ class IMDataStructurePOT(IMDataStructureLog[Counter[PartialOrderTrace]]):
         if (dfg is None) != (efg is None):
             raise ValueError("dfg and efg must be provided together")
 
-        if dfg is not None and efg is not None:
-            self._dfg = dfg
-            self._efg = efg
-        else:
-            artifacts = discover_dfg_efg_pot(obj)
-            self._dfg = artifacts[0]
-            self._efg = artifacts[1]
+        self._dfg = dfg
+        self._efg = efg
 
+    @cached_property
+    def unfiltered_dfg(self) -> DFG:
+        return _unit_dfg(self.data_structure)
 
     @property
     def dfg(self) -> DFG:
-        return self._dfg
+        return self.unfiltered_dfg if self._dfg is None else self._dfg
 
-    @property
+    @cached_property
     def efg(self) -> Counter:
-        return self._efg
+        return _unit_efg(self.data_structure) if self._efg is None else self._efg
 
 
 def is_pot_data_structure(obj: Any) -> bool:
@@ -629,13 +489,42 @@ def split_project_pot_on_groups(
         log: Counter[PartialOrderTrace],
         groups: List[Collection[Any]]
 ) -> List[IMDataStructurePOT]:
+    groups = [frozenset(g) for g in groups]
+    group_of = {a: i for i, group in enumerate(groups) for a in group}
+    if len(group_of) != sum(map(len, groups)):
+        # Cuts partition the alphabet. Overlapping projections are independent.
+        return [split_project_pot_on_groups(log, [group])[0] for group in groups]
     projected_logs = [Counter() for _ in groups]
     for trace, freq in log.items():
-        for i, group in enumerate(groups):
-            for projected in trace.split_project(group):
-                if len(projected) > 0:
-                    projected_logs[i][projected] += freq
+        membership = tuple(map(group_of.get, trace.activities))
+        blocks = trace.serial_blocks
+        if all(all(membership[i] == membership[block[0]] for i in block) for block in blocks):
+            # In a cyclic decision-graph cut, incomparable events necessarily
+            # belong to the same group: they witness both directly-follows edges.
+            for group_id, run in groupby(chain.from_iterable(blocks), key=membership.__getitem__):
+                if group_id is not None:
+                    projected_logs[group_id][trace.induced_subtrace(sorted(run))] += freq
+        else:
+            for part in split_at_boundaries(trace, group_of.get, ne):
+                group_id = group_of.get(part.activities[0])
+                if group_id is not None:
+                    projected_logs[group_id][part] += freq
     return [IMDataStructurePOT(projected_log) for projected_log in projected_logs]
+
+
+def _tau_boundary(mode, start_activities, end_activities):
+    starts = frozenset(start_activities)
+    if mode == "any_to_start":
+        return starts.__contains__, lambda previous, current: current
+    if mode == "end_to_start":
+        ends = frozenset(end_activities)
+
+        def classify(label):
+            return label in starts, label in ends
+
+        return classify, lambda previous, current: previous[1] and current[0]
+    raise ValueError("boundary_mode must be 'end_to_start' or 'any_to_start'")
+
 
 def split_project_pot_by_start_boundaries(
     log: Counter[PartialOrderTrace],
@@ -643,15 +532,13 @@ def split_project_pot_by_start_boundaries(
     start_activities: Collection[Any],
     end_activities: Collection[Any] = frozenset(),
 ) -> IMDataStructurePOT:
+    classify, boundary = _tau_boundary(boundary_mode, start_activities, end_activities)
     projected_log = Counter()
-
     for trace, freq in log.items():
-        for projected in trace.split_project_by_start_boundaries(
-            boundary_mode=boundary_mode,
-            start_activities=start_activities,
-            end_activities=end_activities,
-        ):
-            if len(projected) > 0:
-                projected_log[projected] += freq
+        if not trace:
+            projected_log[trace] += freq
+            continue
+        for projected in split_at_boundaries(trace, classify, boundary):
+            projected_log[projected] += freq
 
     return IMDataStructurePOT(projected_log)

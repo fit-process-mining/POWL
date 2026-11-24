@@ -74,6 +74,12 @@ def apply(
         time_ordering: bool = True,
         time_window: Optional[Union[timedelta, pd.Timedelta]] = None,
 ) -> TaggedPOWL:
+    """Mine sequences, or timestamp-induced partial orders with ``time_ordering=True``.
+
+    With the default unfiltered variant the POT path preserves the structure
+    obtained by mining all linear extensions. Frequency filtering uses native
+    POT weights, which can differ from linear-extension multiplicities.
+    """
     if parameters is None:
         parameters = {}
     if variant == POWLDiscoveryVariant.RULE_BASED and time_ordering:
